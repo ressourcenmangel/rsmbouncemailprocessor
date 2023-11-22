@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace RSM\Rsmbouncemailprocessor\Controller;
 
 use DateTime;
-use Doctrine\DBAL\DBALException;
 use Doctrine\DBAL\Driver\Exception as ExceptionDbalDriver;
 use Exception;
 use PharIo\Manifest\InvalidUrlException;
@@ -117,7 +116,6 @@ class BouncemailController extends ActionController
      * @return ResponseInterface
      * @throws IllegalObjectTypeException
      * @throws StopActionException
-     * @throws DBALException
      */
     public function deleteAction(Bouncereport $bouncereport): ResponseInterface
     {

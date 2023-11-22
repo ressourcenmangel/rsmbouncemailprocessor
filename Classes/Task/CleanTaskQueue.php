@@ -15,7 +15,8 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
@@ -152,8 +153,8 @@ class CleanTaskQueue extends AbstractTask
     {
         $mysettings = [];
 
-        $configurationManager = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Configuration\ConfigurationManager::class);
-        $settings = $configurationManager->getConfiguration(\TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT, 'rsmbouncemailprocessor');
+        $configurationManager = GeneralUtility::makeInstance(ConfigurationManager::class);
+        $settings = $configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT, 'rsmbouncemailprocessor');
 
         if (isset($settings['module.']["$path."])) {
             $mysettings = $settings['module.']["$path."];

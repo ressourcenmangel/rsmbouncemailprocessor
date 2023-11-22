@@ -5,7 +5,6 @@ return [
         'label' => 'timeprocessed',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
-        'cruser_id' => 'cruser_id',
         'versioningWS' => true,
         'languageField' => 'sys_language_uid',
         'transOrigPointerField' => 'l10n_parent',
@@ -34,7 +33,7 @@ return [
                 'renderType' => 'selectSingle',
                 'default' => 0,
                 'items' => [
-                    ['', 0],
+                    ['label' => '', 'value' => 0],
                 ],
                 'foreign_table' => 'tx_rsmbouncemailprocessor_domain_model_bouncereport',
                 'foreign_table_where' => 'AND {#tx_rsmbouncemailprocessor_domain_model_bouncereport}.{#pid}=###CURRENT_PID### AND {#tx_rsmbouncemailprocessor_domain_model_bouncereport}.{#sys_language_uid} IN (-1,0)',

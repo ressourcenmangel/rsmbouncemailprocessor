@@ -18,22 +18,22 @@ call_user_func(function () {
     );
 
     // bounce mail analyse scheduler
-    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['RSM\\Rsmbouncemailprocessor\\Task\\AnalyzeBounceMail'] = [
+    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks'][\RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail::class] = [
         'extension' => 'rsmbouncemailprocessor',
         'title' => 'RSM analyze bounce mail',
         'description' => 'This task will get bounce mail from the configured mailbox',
-        'additionalFields' => 'RSM\\Rsmbouncemailprocessor\\Task\\AnalyzeBounceMailAdditionalFields'
+        'additionalFields' => \RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMailAdditionalFields::class
     ];
 
     // bounce mail process scheduler
-    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['RSM\\Rsmbouncemailprocessor\\Task\\ProcessBounceMail'] = [
+    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks'][\RSM\Rsmbouncemailprocessor\Task\ProcessBounceMail::class] = [
         'extension' => 'rsmbouncemailprocessor',
         'title' => 'RSM process bounce mail',
         'description' => 'This task will process the bounce mail',
     ];
 
     // clean task queue scheduler
-    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['RSM\\Rsmbouncemailprocessor\\Task\\CleanTaskQueue'] = [
+    $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks'][\RSM\Rsmbouncemailprocessor\Task\CleanTaskQueue::class] = [
         'extension' => 'rsmbouncemailprocessor',
         'title' => 'RSM clean task queue',
         'description' => 'This task will clean the task queue',

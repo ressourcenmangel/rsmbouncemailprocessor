@@ -1,10 +1,11 @@
 <?php
 namespace RSM\Rsmbouncemailprocessor\ViewHelpers;
 
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 
-class ActionViewHelper extends \TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper {
+class ActionViewHelper extends AbstractViewHelper {
 
     public function initializeArguments()
     {

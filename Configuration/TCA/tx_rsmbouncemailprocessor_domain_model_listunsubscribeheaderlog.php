@@ -5,7 +5,6 @@ return [
         'label' => 'email',
         'tstamp' => 'tstamp',
         'crdate' => 'crdate',
-        'cruser_id' => 'cruser_id',
         'versioningWS' => true,
         'languageField' => 'sys_language_uid',
         'transOrigPointerField' => 'l10n_parent',
@@ -35,7 +34,7 @@ return [
                 'renderType' => 'selectSingle',
                 'default' => 0,
                 'items' => [
-                    ['', 0],
+                    ['label' => '', 'value' => 0],
                 ],
                 'foreign_table' => 'tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog',
                 'foreign_table_where' => 'AND {#tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog}.{#pid}=###CURRENT_PID### AND {#tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog}.{#sys_language_uid} IN (-1,0)',
@@ -64,8 +63,9 @@ return [
                 'type' => 'input',
                 'size' => '48',
                 'max' => '255',
-                'eval' => 'required,trim',
+                'eval' => 'trim',
                 'readOnly' => 1,
+                'required' => true,
             ],
         ],
         'deletetime' => [
@@ -85,8 +85,9 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => '10',
-                'eval' => 'required,trim,int',
+                'eval' => 'trim,int',
                 'readOnly' => 1,
+                'required' => true,
             ],
         ],
 
@@ -96,8 +97,9 @@ return [
             'config' => [
                 'type' => 'input',
                 'size' => '10',
-                'eval' => 'required,trim,int',
+                'eval' => 'trim,int',
                 'readOnly' => 1,
+                'required' => true,
             ],
         ],
 

@@ -13,7 +13,7 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Core\Messaging\AbstractMessage;
 use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Messaging\FlashMessage;
@@ -141,14 +141,14 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
                 $this->addMessage(
                     $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.dataVerification') .
                     $e->getMessage(),
-                    FlashMessage::ERROR
+                    AbstractMessage::ERROR
                 );
                 $return = true;
             }
         } else {
             $this->addMessage(
                 $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.phpImapError'),
-                FlashMessage::ERROR
+                AbstractMessage::ERROR
             );
             $return = true;
         }

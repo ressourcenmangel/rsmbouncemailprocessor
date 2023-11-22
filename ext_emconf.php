@@ -16,8 +16,6 @@ $EM_CONF['rsmbouncemailprocessor'] = [
     'category' => 'plugin',
     'version' => '1.0.0',
     'state' => 'stable',
-    'uploadfolder' => false,
-    'clearcacheonload' => false,
     'author' => 'ressourcenmangel',
     'author_email' => 'ralph.brugger@ressourcenmangel.de',
     'author_company' => null,
@@ -25,7 +23,7 @@ $EM_CONF['rsmbouncemailprocessor'] = [
         [
             'depends' =>
                 [
-                    'typo3' => '11.5.0-11.5.99',
+                    'typo3' => '11.5.0-12.9.99',
                     'cute_mailing' => '3.0.0-3.99.99',
                     'tt_address' => '7.0.0-9.99.99',
                 ],

@@ -4,7 +4,7 @@ namespace RSM\Rsmbouncemailprocessor\Domain\Model;
 
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
-class Recipientreport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
+class Recipientreport extends AbstractEntity
 {
     /**
      * @var string
