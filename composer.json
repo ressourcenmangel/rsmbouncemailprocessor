@@ -1,5 +1,5 @@
 {
-	"name": "rsm/rsmbouncemailprocessor",
+	"name": "ressourcenmangel/rsmbouncemailprocessor",
 	"type": "typo3-cms-extension",
 	"description": "A TYPO3 extension that handles bounce mails in combination with cute_mailing.",
 	"homepage": "https://www.ressourcenmangel.de/",
