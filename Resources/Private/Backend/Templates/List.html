@@ -1,0 +1,220 @@
+<html
+	data-namespace-typo3-fluid="true"
+	xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+	xmlns:rsmbouncemailprocessor="http://typo3.org/ns/RSM\Rsmbouncemailprocessor\ViewHelpers"
+	lang="en">
+
+
+<f:layout name="Backend"/>
+
+<f:section name="content">
+	<f:render arguments="{_all}" section="Newsletters"/>
+</f:section>
+
+<f:section name="Newsletters">
+
+	<h1>
+		<f:translate key="module.bouncereports.list.title">bouncereports</f:translate>
+	</h1>
+	<f:render arguments="{_all}" partial="Miscellaneous/FlashMessages"/>
+	<f:if condition="{bouncereports}">
+		<f:then>
+			<div class="table -fit">
+				<table class="table table-hover">
+
+					<thead>
+						<tr>
+							<!-- NEWSLETTER :: title -->
+							<th>
+								<f:translate key="module.bouncereports.list.tableheader.title">title</f:translate>
+							</th>
+
+							<!-- NEWSLETTER :: Date -->
+							<th>
+								<f:translate key="module.bouncereports.list.tableheader.sendingtime">sendingtime</f:translate>
+							</th>
+
+							<!-- NEWSLETTER :: geplant / versendet -->
+							<th>
+								<f:translate key="module.bouncereports.list.tableheader.sendingtotal">sendingtotal</f:translate> /
+								<f:translate key="module.bouncereports.list.tableheader.sendingcompleted">sendingcompleted</f:translate>
+							</th>
+
+							<!-- Bounces -->
+							<th>
+								<f:translate key="module.bouncereports.list.tableheader.countprocessed">countprocessed</f:translate>
+							</th>
+
+							<!-- Bounce Analyse-->
+							<th nowrap="nowrap">
+								<f:translate key="module.bouncereports.list.tableheader.bounceanalyse">bounceanalyse</f:translate>
+							</th>
+
+							<!-- ACTION -->
+							<th nowrap="nowrap">
+								<f:translate key="module.bouncereports.list.tableheader.action">action</f:translate>
+							</th>
+						</tr>
+					</thead>
+				<tbody>
+
+				<f:for each="{bouncereports}" as="bouncereport" iteration="iteration">
+					<tr>
+
+						<!-- NEWSLETTER :: title -->
+						<td title="id={bouncereport.newsletterid.uid}::{bouncereport.newsletterid.title}">
+							<f:if condition="{bouncereport.newsletterid}">
+								<f:then>
+									{bouncereport.newsletterid.title}
+									<f:format.crop maxCharacters="-60"></f:format.crop>
+								</f:then>
+								<f:else>
+									<f:translate key="module.bouncereports.list.tableheader.unknownnewsletter">unknownnewsletter</f:translate>
+								</f:else>
+
+							</f:if>
+						</td>
+
+						<!-- NEWSLETTER :: Date -->
+						<td>
+							{bouncereport.newsletterid.sendingTime -> f:format.date(format: 'Y-m-d H:i')}
+						</td>
+
+						<f:variable name="total" value="0"/>
+						<f:variable name="completed" value="0"/>
+						<f:for each="{bouncereport.newsletterid.sendOuts}" as="sendOut" iteration="iteration">
+							{f:variable(name: 'total', value: '{total + sendOut.total}')}
+							{f:variable(name: 'completed', value: '{completed + sendOut.completed}')}
+						</f:for>
+
+						<!-- NEWSLETTER :: geplant / versendet -->
+						{f:variable(name: 'completedpercent', value: '{completed / total * 100.0}')}
+						{f:variable(name: 'bouncepercent', value: '{bouncereport.countprocessed / completed * 100.0}')}
+						{f:variable(name: 'zugestelltt', value: '{completed - bouncereport.countprocessed}')}
+						{f:variable(name: 'zugestelltpercent', value: '{100.0 - bouncepercent}')}
+						<td class="bouncemail_right" nowrap="nowrap">
+							<f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{total}</f:format.number>
+							/ <f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{completed}</f:format.number>
+							(<f:format.number decimals="1" decimalSeparator="," thousandsSeparator=".">{completedpercent}</f:format.number> %)
+							<div class="progress">
+								<div class="progress-bar bg-success" style="width:{completedpercent}%" title="versendet: {completed}/{total} ({completedpercent -> f:format.number(decimals: 1, decimalSeparator: ',', thousandsSeparator: '.')} %)">
+									versendet
+								</div>
+							</div>
+						</td>
+						<td class="bouncemail_right" nowrap="nowrap">
+							Bounces:
+							<f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countprocessed}</f:format.number>
+							/
+							<f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{completed}</f:format.number>
+							(<f:format.number decimals="1" decimalSeparator="," thousandsSeparator=".">{bouncepercent}</f:format.number>%)<br>
+
+							<div class="progress">
+								<div class="progress-bar bg-success" style="width:{completedpercent}%" title="Zugestellt: {zugestelltt}/{completed} ({zugestelltpercent -> f:format.number(decimals: 1, decimalSeparator: ',', thousandsSeparator: '.')} %)">
+									zugestellt
+								</div>
+								<div class="progress-bar bg-warning" style="width:{bouncepercent}%" title=" Bounces: {bouncereport.countprocessed} (<f:format.number decimals="1" decimalSeparator="," thousandsSeparator=".">{bouncepercent}</f:format.number> %)">
+									bounces
+								</div>
+							</div>
+						</td>
+
+						<!-- BOUNCE REPORT -->
+						<td>
+							<table>
+								<tr>
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countunknownreason">countunknownreason</f:translate>:</td>
+									{f:variable(name: 'countunknownreasonpercent', value: '{bouncereport.countunknownreason / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countunknownreason}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countunknownreasonpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countnosenderfound">countnosenderfound</f:translate>:</td>
+									{f:variable(name: 'countnosenderfoundpercent', value: '{bouncereport.countnosenderfound / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countnosenderfound}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countnosenderfoundpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countuserunknown">countuserunknown</f:translate>:</td>
+									{f:variable(name: 'countuserunknownpercent', value: '{bouncereport.countuserunknown / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countuserunknown}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countuserunknownpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countquotaexceededpercent', value: '{bouncereport.countquotaexceeded / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countquotaexceeded">countquotaexceeded</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countquotaexceeded}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countquotaexceededpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countconnectionrefusedpercent', value: '{bouncereport.countconnectionrefused / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countconnectionrefused">countconnectionrefused</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countconnectionrefused}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countconnectionrefusedpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countheadererrorpercent', value: '{bouncereport.countheadererror / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countheadererror">countheadererror</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countheadererror}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countheadererrorpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countoutofofficeprecent', value: '{bouncereport.countoutofoffice / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countoutofoffice">countoutofoffice</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countoutofoffice}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countoutofofficeprecent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countfilterlistpercent', value: '{bouncereport.countfilterlist / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countfilterlist">countfilterlist</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countfilterlist}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countfilterlistpercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countmessagesizepercent', value: '{bouncereport.countmessagesize / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countmessagesize">countmessagesize</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countmessagesize}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countmessagesizepercent}</f:format.number>%</td>
+								</tr>
+								<tr>
+									{f:variable(name: 'countpossiblespampercent', value: '{bouncereport.countpossiblespam / bouncereport.countprocessed * 100.0}')}
+									<td class="bouncereason"><f:translate key="module.bouncereports.list.tableheader.countpossiblespam">countpossiblespam</f:translate>:</td>
+									<td class="bouncereasoncount"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{bouncereport.countpossiblespam}</f:format.number></td>
+									<td class="bouncepercent"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{countpossiblespampercent}</f:format.number>%</td>
+								</tr>
+							</table>
+
+						</td>
+
+						<td class="bouncemail_right">
+							<div class="btn-group">
+								<f:link.action
+									action="delete"
+									additionalAttributes=""
+									arguments="{bouncereport:bouncereport}"
+									class="btn btn-default t3js-record-delete"
+									title="{f:translate(key: 'module.bouncereports.list.delete', extensionName: 'Rsmbouncemailprocessor')}">
+									<span
+										class="t3js-icon icon icon-size-small icon-state-default icon-actions-edit-delete"
+										data-identifier="actions-edit-delete">
+										<span class="icon-markup">
+											<svg class="icon-color">
+												<use
+													xlink:href="/typo3/sysext/core/Resources/Public/Icons/T3Icons/sprites/actions.svg#actions-delete"></use>
+											</svg>
+										</span>
+									</span>
+									<span class="sr-only">
+										<f:translate key="module.bouncereports.list.delete">delete</f:translate>
+									</span>
+								</f:link.action>>
+							</div>
+						</td>
+					</tr>
+				</f:for>
+				</tbody>
+			</table>
+			</div>
+		</f:then>
+	</f:if>
+</f:section>

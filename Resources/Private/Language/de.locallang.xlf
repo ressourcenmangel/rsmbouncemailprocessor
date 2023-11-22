@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.0">
+	<file source-language="en" datatype="plaintext" original="messages" date="2022-10-09T12:38:21Z" product-name="rsmbouncemailprocessor">
+		<header/>
+		<body>
+			<trans-unit id="message.choosePage">
+				<target>Please choose a report page first!</target>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.link.action.bouncereport">
+				<target>Bounce Berichte</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.link.action.recipientreport">
+				<target>Empfänger Berichte</target>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.list.title">
+				<target>Bounce Berichte</target>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.list.edit">
+				<target>Bearbeiten</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.delete">
+				<target>Löschen</target>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.list.tableheader.title">
+				<target>Titel</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.sendingtime">
+				<target>Versandzeit</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.sendingtotal">
+				<target>Geplant</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.sendingcompleted">
+				<target>Versendet</target>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.list.tableheader.countprocessed">
+				<target>Bounces</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.bounceanalyse">
+				<source>Bounce Analyse</source>
+			</trans-unit>
+
+			<trans-unit id="module.bouncereports.list.tableheader.countunknownreason">
+				<target>Unbekannter Grund</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countnosenderfound">
+					<target>Sender nicht gefunden</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countuserunknown">
+					<target>User unknown</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countquotaexceeded">
+					<target>Quota exceeded</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countconnectionrefused">
+					<target>Connection refused</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countheadererror">
+					<target>Header error</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countoutofoffice">
+					<target>Out of office</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countfilterlist">
+					<target>Filter list</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countmessagesize">
+					<target>Message size</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.countpossiblespam">
+					<target>Possible spam</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.action">
+					<target>Action</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.unknownnewsletter">
+					<target>Unbekannter Newsletter</target>
+			</trans-unit>
+			<trans-unit id="module.bouncereport.delete.message">
+					<target> Bounce Bericht</target>
+			</trans-unit>
+
+
+
+			<trans-unit id="module.recipientreports.list.title">
+				<target>Empfänger Berichte</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.edit">
+				<target>Bearbeiten</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.delete">
+				<target>Löschen</target>
+			</trans-unit>
+
+			<trans-unit id="module.recipientreports.list.tableheader.email">
+				<target>E-Mail</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.summe">
+				<target>Fehlersumme</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countunknownreason">
+				<target>Unbekannter Grund</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countnosenderfound">
+					<target>Sender nicht gefunden</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countuserunknown">
+					<target>user unknown</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countquotaexceeded">
+					<target>quota exceeded</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countconnectionrefused">
+					<target>connection refused</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countheadererror">
+					<target>header error</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countoutofoffice">
+					<target>out of office</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countfilterlist">
+					<target>filter list</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countmessagesize">
+					<target>message size</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.countpossiblespam">
+					<target>possible spam</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.tableheader.action">
+					<target>Action</target>
+			</trans-unit>
+			<trans-unit id="module.recipientreport.delete.message">
+					<target>Empfänger Bericht</target>
+			</trans-unit>
+
+		</body>
+	</file>
+</xliff>

@@ -1,0 +1,244 @@
+# Module configuration
+module.tx_rsmbouncemailprocessor {
+
+    # TYPO3 View
+    view {
+        templateRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.templateRootPath}
+        partialRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.partialRootPath}
+        layoutRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.layoutRootPath}
+    }
+
+    # Settings
+    settings {
+
+        # Task\AnalyzeBounceMail.php
+        # strings to get the reason for the bounce mails
+        reasontext {
+
+            # user unknown
+            550 {
+                01 = 5.7.1 unable to relay
+                02 = 550 5.1.1 recipient
+                03 = 550 requested action not taken
+                04 = 550-5.1.1 the email account that you tried to reach does not exist
+                05 = a message that you sent could not be delivered to one or more
+                06 = account does not exist
+                07 = account has been disabled or discontinued
+                08 = account that you tried to reach is disabled
+                09 = address rejected
+                10 = be delivered to one or more recipients
+                11 = bitte entfernen Sie diese Adresse aus Ihrem Verteiler
+                12 = da sie keine berechtigung zum senden an diesen empf
+                13 = delivery failed 550
+                14 = destination addresses were unknown
+                15 = die eingegebene e-mail-adresse konnte nicht gefunden werden
+                16 = Diese Nachricht konnte nicht zugestellt werden
+                17 = does not have an account here
+                18 = domino directory entry does not
+                19 = hop count exceeded
+                20 = ihnen die berechtigung zu erteilen
+                21 = ihre nachricht wird nicht gesendet, da sie zu gro
+                22 = inactive user
+                23 = invalid recipient
+                24 = is not a valid mailbox
+                25 = is unknown at host
+                26 = konnte leider nicht zugestellt werden
+                27 = mailaddress is administratively disabled
+                28 = mailbox unavailable
+                29 = maximum forwarding loop count exceeded
+                30 = nicht existierendes mailkonto
+                31 = nicht im domino-verzeichnis aufge
+                32 = no mailbox here by that name
+                33 = no mailbox
+                34 = no such user
+                35 = not found in directory
+                36 = not listed in domino directory
+                37 = not listed in public name & address book
+                38 = receiver not found
+                40 = recipient address rejected
+                41 = recipient name is not recognized
+                42 = recipient not found by smtp
+                43 = recipient problem
+                44 = recipient unknown
+                45 = rejected address
+                46 = status code: 550
+                47 = status: 5.1.1
+                48 = the address may be misspelled or may not exist
+                49 = the email account that you tried to reach does not exist
+                50 = the email address you entered couldn
+                51 = the following address failed
+                52 = the following addresses had permanent fatal errors
+                53 = unknown in relay recipient table
+                54 = unknown local part
+                55 = unknown or illegal alias
+                56 = unknown recipient
+                57 = unknown to address
+                58 = unknown user
+                59 = unrouteable address
+                60 = user disabled
+                61 = user is inactive
+                62 = user is unknown
+                63 = user not listed
+                64 = user unknown
+                65 = we do not relay
+                66 = your message could not
+                67 = die Emailadresse hat sich geändert
+                68 = Delivery has failed to these recipients
+                69 = Bitte nutzen Sie ab sofort die Emailadresse
+                70 = Bitte beachten Sie unsere neue E-Mail-Adresse
+            }
+
+            # quota exceeded
+            551 {
+				01 = ist voll und kann zurzeit keine nachrichten
+				02 = mailbox full
+				03 = mailbox is full
+				04 = mailbox lleno
+				05 = mailfolder is over the allowed quota
+				06 = not enough space on the disk
+				07 = over quota
+				08 = quota exceeded
+				09 = recipient reached disk quota
+				10 = recipient storage full
+				11 = temporalmente sobre utilizada
+				12 = user mailbox exceeds allowed size
+            }
+
+            # connection refused
+			552{
+				01 = connection refused
+				02 = connection timed out
+				03 = domain invalid
+				04 = find any host named
+				05 = host lookup did not complete: retry timeout exceeded
+				06 = host not found
+				07 = no es posible conectar correctamente
+				08 = not reached for any host after a long failure period
+				09 = timed out while
+				10 = unable to connect to dns
+				11 = unrouteable mail domain
+			}
+
+            # header error
+            554{
+                01 = error in header
+                02 = header error
+                03 = header line format error
+                04 = invalid message
+                05 = invalid structure
+            }
+
+            # out of office
+            XOUT{
+                01 = abwesenheitsnotiz
+                02 = abwesend und kehre zur
+                03 = out of office
+                04 = out of the office
+                05 = im Urlaub
+                06 = Krankheitsbedingt bin ich
+                07 = nicht im Büro sein
+                08 = dienstlich nicht erreichbar
+                09 = wieder erreichbar
+                10 = meiner Abwesenheit nicht
+                11 = wieder regulär im Büro erreichbar
+                12 = wenden Sie sich bitte an meine Kollegen
+                13 = wenden Sie sich an meinen Kollegen
+                14 = wenden Sie sich bitte an unsere Zentrale
+            }
+
+            # Sender is on filter list
+            XFILTER{
+                01 = email address is on senderfilterconfig list
+                02 = message bounced due to organizational settings
+                03 = resolver.rst.restrictedtorecipientspermission
+                04 = said: 554 5.7.105
+            }
+
+            # Mesage size
+            XSIZE{
+                01 = verkleinern Sie die Nachricht, beispielsweise durch Entfernen
+            }
+
+            # possible spam
+            XSPAM{
+                01 = as spam
+            }
+
+        }
+
+        # The delete log of deleted tt_adress entries
+        deletelog{
+            # enable the delete log
+            enabled = 0
+            # pid of the delete log
+            pid = 0
+        }
+
+        # Task\ProcessBounceMail.php
+        # Delete limits for the bounce proecssor
+        deletelimits {
+
+            //
+            // reasons that normally should not result in deleting the adress.
+            // Value must be set to 0
+            //
+
+            # the reason could not be found. Normally  just an auto-repsonder
+            countunknownreason = 0
+
+            # sender (recipient) could not be found
+            countnosenderfound = 0
+
+            # User ist out of office
+            countoutofoffice = 0
+
+
+            //
+            // reasons that normally should result in deleting the adress.
+            // Value must be set to > 0
+            //
+
+            # user is unknown (address does not exist)
+            countuserunknown = 2
+
+            # user qutota exceeded (normally only temporarily)
+            countquotaexceeded = 5
+
+            # server refused the connection
+            countconnectionrefused = 2
+
+            # Error in the e-mail header
+            countheadererror = 2
+
+            # user is on a filter list
+            countfilterlist = 2
+
+            # message size to big
+            countmessagesize = 5
+
+            # server detected the e-mail as spam
+            countpossiblespam = 2
+        }
+
+        # Task/CleanTaskQueue
+        deletetables{
+
+            # Delete succeeded tasks after n-days. 0 means do not delete
+            tx_taskqueue_domain_model_task{
+                deleteafterdays = 30
+            }
+
+            # Delete Bouncereport-entries after n-days. 0 means do not delete
+            tx_rsmbouncemailprocessor_domain_model_bouncereport{
+                deleteafterdays = 0
+            }
+
+            # Delete Deletelog-entries after n-days. 0 means do not delete
+            tx_rsmbouncemailprocessor_domain_model_deletelog{
+                deleteafterdays = 0
+            }
+
+        }
+
+    }
+}

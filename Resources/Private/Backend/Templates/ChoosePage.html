@@ -1,0 +1,16 @@
+<html data-namespace-typo3-fluid="true" xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" lang="en">
+
+<f:layout name="Backend"/>
+
+<f:section name="content">
+	<f:render arguments="{_all}" section="Newsletters"/>
+</f:section>
+
+<f:section name="Newsletters">
+
+	<h1>
+		<f:translate key="module.bouncereports.list.title">Bouncemail</f:translate>
+	</h1>
+	<f:render arguments="{_all}" partial="Miscellaneous/FlashMessages"/>
+	<f:be.infobox state="1"><f:translate key="message.choosePage">choosePage</f:translate></f:be.infobox>
+</f:section>

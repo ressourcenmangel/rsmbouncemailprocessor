@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.0">
+	<file source-language="en" datatype="plaintext" original="messages" date="2013-08-28T17:07:34Z" product-name="rsmbouncemailprocessor">
+		<header/>
+		<body>
+
+
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport">
+				<source>Bounce Report Newsletter</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.newsletterid">
+				<source>Newsletter</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.timeprocessed">
+				<source>Letzte Bearbeitung</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countmails">
+				<source>Mails im Posteingag beim Abruf</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countprocessed">
+				<source>Bearbeitete Mails</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countunknownreason">
+				<source>Unbekannt (-1)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countnosenderfound">
+				<source>Empfänger nicht ermittelbar (-2)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countuserunknown">
+				<source>User unknown (550)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countquotaexceeded">
+				<source>quota exceeded (551)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countconnectionrefused">
+				<source>connection refused (552)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countheadererror">
+				<source>header error (554)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countoutofoffice">
+				<source>of office (XUT)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countfilterlist">
+				<source>Filterlist (XFILTER)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countmessagesize">
+				<source>Mesage size (XSIZE)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_bouncereport.countpossiblespam">
+				<source>Possible Spam (XSPAM)</source>
+			</trans-unit>
+
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport">
+				<source>Bounce Report Empfänger</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.email">
+				<source>E-Mail</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countunknownreason">
+				<source>Unbekannt (-1)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countnosenderfound">
+				<source>Empfänger nicht ermittelbar (-2)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countuserunknown">
+				<source>User unknown (550)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countquotaexceeded">
+				<source>quota exceeded (551)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countconnectionrefused">
+				<source>connection refused (552)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countheadererror">
+				<source>header error (554)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countoutofoffice">
+				<source>of office (XUT)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countfilterlist">
+				<source>Filterlist (XFILTER)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countmessagesize">
+				<source>Mesage size (XSIZE)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countpossiblespam">
+				<source>Possible Spam (XSPAM)</source>
+			</trans-unit>
+
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog">
+				<source>Bounce Delete Log</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.email">
+				<source>E-Mail</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.deletetime">
+				<source>Gelöscht am</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.origuid">
+				<source>uid (tt_address Datensatz)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.origpid">
+				<source>pid (tt_address Datensatz)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.reasontext">
+				<source>Reason Text</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.reasonvalue">
+				<source>Reason Wert</source>
+			</trans-unit>
+
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog">
+				<source>List Unsubscribe Log</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.email">
+				<source>E-Mail</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.deletetime">
+				<source>Gelöscht am</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.origuid">
+				<source>uid (tt_address Datensatz)</source>
+			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.origpid">
+				<source>pid (tt_address Datensatz)</source>
+			</trans-unit>
+
+		</body>
+	</file>
+</xliff>

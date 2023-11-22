@@ -1,0 +1,64 @@
+<html data-namespace-typo3-fluid="true" lang="en"
+			xmlns="http://www.w3.org/1999/xhtml"
+			xmlns:f="http://typo3.org/ns/TYPO3/Fluid/ViewHelpers">
+<f:Be.Container
+	includeCssFiles="{0:'{f:uri.resource(path:\'Css/Modules.css?102\',extensionName:\'rsmbouncemailprocessor\')}'}"
+	pageTitle="Bouncemail">
+
+	<div class="module">
+		<div class="module-docheader">
+			<div class="typo3-docheader-functions">
+				<div class="module-docheader-bar module-docheader-bar-navigation">
+
+					<div class="module-docheader-bar-column-left">
+						<div class="btn-group" role="group">
+							<f:link.action action="list" class="btn btn-default" controller="Bouncemail">
+								<f:translate key="module.bouncereports.link.action.bouncereport">bouncereport</f:translate>
+							</f:link.action>
+							<f:link.action action="recipientlist" class="btn btn-default" controller="Recipientreport">
+								<f:translate key="module.bouncereports.link.action.recipientreport">recipientreport</f:translate>
+							</f:link.action>
+						</div>
+					</div>
+
+				</div>
+			</div>
+			<div class="module-docheader-bar module-docheader-bar-buttons">
+				<div class="module-docheader-bar-column-left">
+				</div>
+				<div class="module-docheader-bar-column-right">
+					<f:be.buttons.shortcut/>
+				</div>
+			</div>
+		</div>
+		<div class="backend module-body">
+			<f:render section="content"/>
+		</div>
+	</div>
+
+
+	<style>
+		.table>tbody>tr>td,
+		.table>tfoot>tr>td,
+		.table>thead>tr>td {
+			vertical-align:top
+		}
+		td.bouncereason{
+			min-width: 150px;
+			text-align: left;
+		}
+		td.bouncereasoncount{
+			min-width: 60px;
+			text-align: right;
+		}
+		td.bouncepercent{
+			min-width: 40px;
+			text-align: right;
+		}
+
+	</style>
+
+</f:Be.Container>
+
+
+</html>

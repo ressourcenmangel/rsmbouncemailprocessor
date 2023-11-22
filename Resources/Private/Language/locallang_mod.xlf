@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+	<file source-language="en" datatype="plaintext" original="EXT:rsmbouncemailprocessor/Resources/Private/Language/Modules/locallang_mod.xlf" date="2023-01-29T12:00:00Z" product-name="rsmbouncemailprocessor">
+		<header>
+			<description>Labels for the main rsmbouncemailprocessor module</description>
+			<type>module</type>
+			<authorName>Ralph Brugger</authorName>
+			<authorEmail>ralph.brugger@ressourcenmangel.de</authorEmail>
+		</header>
+		<body>
+			<trans-unit id="scheduler.rsmbouncemail.server" resname="scheduler.rsmbouncemail.server">
+				<source>Server URL/IP</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.server" resname="scheduler.rsmbouncemailcsh.server">
+				<source>URL or IP of the mail server</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.port" resname="scheduler.rsmbouncemail.port">
+				<source>Port number</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.port" resname="scheduler.rsmbouncemailcsh.port">
+				<source>Port number of the mail server</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.user" resname="scheduler.rsmbouncemail.user">
+				<source>Username</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.user" resname="scheduler.rsmbouncemailcsh.user">
+				<source>Username for authentication</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.password" resname="scheduler.rsmbouncemail.password">
+				<source>Password</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.password" resname="scheduler.rsmbouncemailcsh.password">
+				<source>Password for authentication</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.service" resname="scheduler.rsmbouncemail.service">
+				<source>Type of mailserver</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.service" resname="scheduler.rsmbouncemailcsh.service">
+				<source>IMAP or POP3</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.maxProcessed" resname="scheduler.rsmbouncemail.maxProcessed">
+				<source>Number of bounce mail to be processed</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.maxProcessed" resname="scheduler.rsmbouncemailcsh.maxProcessed">
+				<source>aximum number of bounce mail to be processed on one scheduler cycle</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.deletealways" resname="scheduler.rsmbouncemail.deletealways">
+				<source>Delete every mail</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemailcsh.deletealways" resname="scheduler.rsmbouncemailcsh.deletealways">
+				<source>Delete every mail after processing, not only those that could be analysed</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>
