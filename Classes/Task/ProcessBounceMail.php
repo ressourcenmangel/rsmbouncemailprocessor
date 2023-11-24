@@ -17,13 +17,15 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  */
 
 use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
+use RSM\Rsmbwcutemailingextend\Domain\Repository\TtAddressRecipientRepository;
 
 /**
  * Class ProcessBounceMail
@@ -33,6 +35,22 @@ use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
 class ProcessBounceMail extends AbstractTask
 {
 
+
+    /**
+     * newsletterRepository object
+     * @var NewsletterRepository
+     */
+    protected NewsletterRepository $newsletterRepository;
+
+    /**
+     * @var RecipientRepository|null
+     */
+    protected $recipientRepository = null;
+
+    /**
+     * @var PersistenceManager
+     */
+    protected $persistenceManager = null;
 
     /**
      * initializes the class
@@ -46,6 +64,16 @@ class ProcessBounceMail extends AbstractTask
 
         /** @var NewsletterRepository $newsletterRepository */
         $this->newsletterRepository = GeneralUtility::makeInstance(NewsletterRepository::class);
+
+        /**  @var TtAddressRecipientRepository $recipientRepository */
+        $this->recipientRepository = GeneralUtility::makeInstance(TtAddressRecipientRepository::class);
+        $defaultQuerySettings = $this->recipientRepository->createQuery()->getQuerySettings();
+        $defaultQuerySettings->setRespectStoragePage(false);
+        $this->recipientRepository->setDefaultQuerySettings($defaultQuerySettings);
+
+        /** @var PersistenceManager $persistenceManager */
+        $this->persistenceManager = GeneralUtility::makeInstance(PersistenceManager::class);
+        $this->recipientRepository->injectPersistenceManager($this->persistenceManager);
 
     }
 
@@ -94,37 +122,19 @@ class ProcessBounceMail extends AbstractTask
                         $logemail = $row['email'];
                         $logvalue = $row[$key];
 
-                        // read the recipient in tt_address
-                        $queryBuilderReadTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-                        $resultReadTTAddress = $queryBuilderReadTTAddress
-                            ->select('uid', 'pid', 'email', 'tstamp', 'crdate')
-                            ->from('tt_address')
-                            ->where(
-                                $queryBuilderReadTTAddress->expr()->eq('email',
-                                    $queryBuilderReadTTAddress->createNamedParameter($logemail, Connection::PARAM_STR)),
-                            )
-                            ->execute();
+                        // get the recipient(s) can be more than once for one email
+                        /** @var RegisteraddressRecipientList $recipient */
+                        $recipients = $this->recipientRepository->findByEmail($logemail);
+                        if ($recipients) {
+                            foreach ($recipients as $recipient) {
 
-                        if ($resultReadTTAddress) {
-                            $rowReadTTAddress = $resultReadTTAddress->fetch();
-                            if ($rowReadTTAddress) {
-                                $logpid = $rowReadTTAddress['pid'];
-                                $loguid = $rowReadTTAddress['uid'];
-                                $tstamp = $rowReadTTAddress['tstamp'];
-                                $crdate = $rowReadTTAddress['crdate'];
+                                // get the recipients data
+                                $logpid = $recipient->getPid();
+                                $loguid = $recipient->getUid();
 
-                                if ($logpid && $loguid) {
-
-                                    // delete from tt_address
-                                    $queryBuilderDeleteTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-                                    $affectedRows = $queryBuilderDeleteTTAddress
-                                        ->delete('tt_address')
-                                        ->where(
-                                            $queryBuilderDeleteTTAddress->expr()->eq('uid',
-                                                $queryBuilderDeleteTTAddress->createNamedParameter($loguid,
-                                                    Connection::PARAM_INT))
-                                        )
-                                        ->executeStatement();
+                                // delete the $recipient && persist
+                                $this->recipientRepository->remove($recipient);
+                                $this->persistenceManager->persistAll();
 
                                     // delete the recipientreport entry
                                     $queryBuilderDeletedRecipientreport = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
@@ -132,11 +142,13 @@ class ProcessBounceMail extends AbstractTask
                                         ->delete('tx_rsmbouncemailprocessor_domain_model_recipientreport')
                                         ->where(
                                             $queryBuilderDeletedRecipientreport->expr()->eq('uid',
-                                                $queryBuilderDeletedRecipientreport->createNamedParameter($logrecipientreportuid,Connection::PARAM_INT))
+                                            $queryBuilderDeletedRecipientreport->createNamedParameter($logrecipientreportuid,
+                                                Connection::PARAM_INT))
                                         )
                                         ->executeStatement();
 
                                     // delete log enabled?
+                                if ($logpid && $loguid) {
                                     if (isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
                                         if ($this->conf['settings.']['deletelog.']['enabled'] == 1) {
                                             if ($this->conf['settings.']['deletelog.']['pid'] > 0) {
@@ -150,8 +162,8 @@ class ProcessBounceMail extends AbstractTask
                                                         'origpid' => $logpid,
                                                         'origuid' => $loguid,
                                                         'email' => $logemail,
-                                                        'tstamp' => $tstamp,
-                                                        'crdate' => $crdate,
+                                                        'tstamp' => time(),
+                                                        'crdate' => time(),
                                                         'deletetime' => time(),
                                                         'reasontext' => $key,
                                                         'reasonvalue' => $logvalue
@@ -187,7 +199,8 @@ class ProcessBounceMail extends AbstractTask
         $mysettings = [];
 
         $configurationManager = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Configuration\ConfigurationManager::class);
-        $settings = $configurationManager->getConfiguration(\TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT, 'rsmbouncemailprocessor');
+        $settings = $configurationManager->getConfiguration(\TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT,
+            'rsmbouncemailprocessor');
 
         if (isset($settings['module.']["$path."])) {
             $mysettings = $settings['module.']["$path."];

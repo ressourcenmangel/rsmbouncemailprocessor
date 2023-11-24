@@ -17,13 +17,15 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  */
 
 use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
+use RSM\Rsmbwcutemailingextend\Domain\Repository\TtAddressRecipientRepository;
 
 define('SENDER_ORG', 'Sender is org recipient');
 define('SENDER_FROM', 'Sender is from');
@@ -120,6 +122,17 @@ class AnalyzeBounceMail extends AbstractTask
      * @var NewsletterRepository
      */
     protected NewsletterRepository $newsletterRepository;
+
+    /**
+     * @var RecipientRepository|null
+     */
+    protected $recipientRepository = null;
+
+    /**
+     * @var PersistenceManager
+     */
+    protected $persistenceManager = null;
+
 
     /**
      * url of the mail server
@@ -304,6 +317,13 @@ class AnalyzeBounceMail extends AbstractTask
         /** @var NewsletterRepository $newsletterRepository */
         $this->newsletterRepository = GeneralUtility::makeInstance(NewsletterRepository::class);
 
+        /**  @var TtAddressRecipientRepository $recipientRepository */
+        $this->recipientRepository = GeneralUtility::makeInstance(TtAddressRecipientRepository::class);
+
+        /** @var PersistenceManager $persistenceManager */
+        $this->persistenceManager = GeneralUtility::makeInstance(PersistenceManager::class);
+        $this->recipientRepository->injectPersistenceManager($this->persistenceManager);
+
     }
 
     /**
@@ -341,7 +361,6 @@ class AnalyzeBounceMail extends AbstractTask
                 // process the mail
                 $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
                 if ($listunsubscribeHeader) {
-// TODO::check
                     $result = $this->processlistunsubscribeHeader($message, $listunsubscribeHeader);
 
                 } else {
@@ -479,23 +498,6 @@ class AnalyzeBounceMail extends AbstractTask
         $bounceItem['reason_text'] = ERR_REASON[$bounceReport['reason']];
         $bounceItem['recipient'] = $orgrecipient;
         $this->arBounces[] = $bounceItem;
-
-        /*
-        if ($orgrecipient == 'stephan.kirste@urz.uni-heidelberg.de') {
-            echo "<h1>V10</h1>";
-            echo print_r($bounceItem, true) . "<br><br>";
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "SUBJECT [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $subject . "\n\n", FILE_APPEND);
-
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "HEADER [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $header . "\n\n", FILE_APPEND);
-
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "MESSAGE [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $mailmessage . "\n\n", FILE_APPEND);
-            die("DDDD");
-        }
-        */
-
 
         return true;
     }
@@ -1137,55 +1139,32 @@ class AnalyzeBounceMail extends AbstractTask
 
     /**
      * process the ListunsubscribeHeader
-     * @param Mailmessage $mailmessage the message object
      * @param Array $listunsubscribeHeader
      * @return bool
      */
-    private function processlistunsubscribeHeader(Mailmessage $mailmessage, array $listunsubscribeHeader): bool
+    private function processlistunsubscribeHeader(array $listunsubscribeHeader): bool
     {
         $success = false;
 
-        if ($mailmessage && $listunsubscribeHeader) {
+        if ($listunsubscribeHeader) {
 
-            // read the recipient in tt_address
-            $queryBuilderReadTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-            $resultReadTTAddress = $queryBuilderReadTTAddress
-                ->select('uid', 'pid', 'email', 'tstamp', 'crdate')
-                ->from('tt_address')
-                ->where(
-                    $queryBuilderReadTTAddress->expr()->eq('uid',
-                        $queryBuilderReadTTAddress->createNamedParameter($listunsubscribeHeader['rcptuid'],
-                            Connection::PARAM_STR)),
-                    $queryBuilderReadTTAddress->expr()->eq('email',
-                        $queryBuilderReadTTAddress->createNamedParameter($listunsubscribeHeader['rcptemail'],
-                            Connection::PARAM_STR)),
-                )
-                ->execute();
+            // get the recipient
+            $defaultQuerySettings = $this->recipientRepository->createQuery()->getQuerySettings();
+            $defaultQuerySettings->setRespectStoragePage(false);
+            $this->recipientRepository->setDefaultQuerySettings($defaultQuerySettings);
 
+            /** @var RegisteraddressRecipientList $recipient */
+            $recipient = $this->recipientRepository->findByUid($listunsubscribeHeader['rcptuid']);
+            if ($recipient) {
 
-            if ($resultReadTTAddress) {
-                $rowReadTTAddress = $resultReadTTAddress->fetch();
-                if ($rowReadTTAddress) {
-                    $logpid = $rowReadTTAddress['pid'];
-                    $loguid = $rowReadTTAddress['uid'];
-                    $tstamp = $rowReadTTAddress['tstamp'];
-                    $crdate = $rowReadTTAddress['crdate'];
+                // compare the email
+                $email = $recipient->getEmail();
+                if ($email && strtolower($email) == strtolower($listunsubscribeHeader['rcptemail'])) {
+                    $logpid = $recipient->getPid() ?? 0;
 
-                    if ($logpid && $loguid) {
-
-                        // result
-                        $success = true;
-
-                        // delete from tt_address
-                        $queryBuilderDeleteTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-                        $affectedRows = $queryBuilderDeleteTTAddress
-                            ->delete('tt_address')
-                            ->where(
-                                $queryBuilderDeleteTTAddress->expr()->eq('uid',
-                                    $queryBuilderDeleteTTAddress->createNamedParameter($loguid,
-                                        Connection::PARAM_INT))
-                            )
-                            ->executeStatement();
+                    // delete the $recipient && persist
+                    $this->recipientRepository->remove($recipient);
+                    $this->persistenceManager->persistAll();
 
                         // delete log enabled?
                         if (isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
@@ -1198,11 +1177,11 @@ class AnalyzeBounceMail extends AbstractTask
                                         ->insert('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog')
                                         ->values([
                                             'pid' => $this->conf['settings.']['deletelog.']['pid'],
+                                        'email' => $listunsubscribeHeader['rcptemail'],
+                                        'origuid' => $listunsubscribeHeader['rcptuid'],
                                             'origpid' => $logpid,
-                                            'origuid' => $loguid,
-                                            'email' => $listunsubscribeHeader['rcptemail'],
-                                            'tstamp' => $tstamp,
-                                            'crdate' => $crdate,
+                                        'tstamp' => time(),
+                                        'crdate' => time(),
                                             'deletetime' => time(),
                                         ])
                                         ->executeStatement();
@@ -1213,7 +1192,6 @@ class AnalyzeBounceMail extends AbstractTask
                     }
                 }
 
-            }
 
         }
 

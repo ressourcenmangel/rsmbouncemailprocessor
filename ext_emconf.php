@@ -27,7 +27,6 @@ $EM_CONF['rsmbouncemailprocessor'] = [
                 [
                     'typo3' => '11.5.0-11.5.99',
                     'cute_mailing' => '3.0.0-3.99.99',
-                    'tt_address' => '7.0.0-9.99.99',
                 ],
             'conflicts' =>
                 [
