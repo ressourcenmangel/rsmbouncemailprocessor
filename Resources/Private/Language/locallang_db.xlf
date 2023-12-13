@@ -97,11 +97,8 @@
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.deletetime">
 				<source>Gelöscht am</source>
 			</trans-unit>
-			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.origuid">
-				<source>uid (tt_address Datensatz)</source>
-			</trans-unit>
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.origpid">
-				<source>pid (tt_address Datensatz)</source>
+				<source>pid (address Datensatz)</source>
 			</trans-unit>
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog.reasontext">
 				<source>Reason Text</source>
@@ -119,11 +116,8 @@
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.deletetime">
 				<source>Gelöscht am</source>
 			</trans-unit>
-			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.origuid">
-				<source>uid (tt_address Datensatz)</source>
-			</trans-unit>
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.origpid">
-				<source>pid (tt_address Datensatz)</source>
+				<source>pid (address Datensatz)</source>
 			</trans-unit>
 
 		</body>

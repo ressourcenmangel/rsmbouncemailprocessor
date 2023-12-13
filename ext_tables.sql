@@ -34,7 +34,6 @@ CREATE TABLE tx_rsmbouncemailprocessor_domain_model_recipientreport
 CREATE TABLE tx_rsmbouncemailprocessor_domain_model_deletelog
 (
 	email       varchar(255) DEFAULT '' NOT NULL,
-	origuid     int(11) NOT NULL DEFAULT '0',
 	origpid     int(11) NOT NULL DEFAULT '0',
 	reasontext  varchar(255) DEFAULT '' NOT NULL,
 	reasonvalue int(11) NOT NULL DEFAULT '0',
@@ -44,7 +43,6 @@ CREATE TABLE tx_rsmbouncemailprocessor_domain_model_deletelog
 CREATE TABLE tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog
 (
 	email       varchar(255) DEFAULT '' NOT NULL,
-	origuid     int(11) NOT NULL DEFAULT '0',
 	origpid     int(11) NOT NULL DEFAULT '0',
 	deletetime  int(11) NOT NULL DEFAULT '0',
 );

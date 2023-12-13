@@ -17,7 +17,7 @@ return [
     ],
 
     'types' => [
-        '1' => ['showitem' => 'email,deletetime,origuid,origpid, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language, sys_language_uid, l10n_parent, l10n_diffsource, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access'],
+        '1' => ['showitem' => 'email,deletetime,origpid, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language, sys_language_uid, l10n_parent, l10n_diffsource, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access'],
     ],
     'columns' => [
         'sys_language_uid' => [
@@ -75,17 +75,6 @@ return [
                 'type' => 'input',
                 'renderType' => 'inputDateTime',
                 'eval' => 'datetime',
-                'readOnly' => 1,
-            ],
-        ],
-
-        'origuid' => [
-            'label' => 'LLL:EXT:rsmbouncemailprocessor/Resources/Private/Language/locallang_db.xlf:tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog.origuid',
-            'exclude' => false,
-            'config' => [
-                'type' => 'input',
-                'size' => '10',
-                'eval' => 'required,trim,int',
                 'readOnly' => 1,
             ],
         ],
