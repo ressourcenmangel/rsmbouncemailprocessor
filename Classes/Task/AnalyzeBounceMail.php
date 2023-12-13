@@ -18,9 +18,10 @@ namespace RSM\Rsmbouncemailprocessor\Task;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Scheduler\Task\AbstractTask;
 use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
@@ -121,6 +122,12 @@ class AnalyzeBounceMail extends AbstractTask
      * @var NewsletterRepository
      */
     protected NewsletterRepository $newsletterRepository;
+
+    /**
+     * @var PersistenceManager
+     */
+    protected $persistenceManager = null;
+
 
     /**
      * url of the mail server
@@ -301,9 +308,11 @@ class AnalyzeBounceMail extends AbstractTask
         /** @var SendOutRepository $sendOutRepository */
         $this->sendOutRepository = GeneralUtility::makeInstance(SendOutRepository::class);
 
-
         /** @var NewsletterRepository $newsletterRepository */
         $this->newsletterRepository = GeneralUtility::makeInstance(NewsletterRepository::class);
+
+        /** @var PersistenceManager $persistenceManager */
+        $this->persistenceManager = GeneralUtility::makeInstance(PersistenceManager::class);
 
     }
 
@@ -314,12 +323,21 @@ class AnalyzeBounceMail extends AbstractTask
      */
     public function execute(): bool
     {
-
         // defaults
         $result = false;
 
         // init
         $this->initClass();
+
+        // TESTING @TODO
+        /*
+        $listunsubscribeHeader = [];
+        $listunsubscribeHeader[] = '';
+        $listunsubscribeHeader['rcptemail'] = 'wilsonrosalind@yahoo.co.uk';
+        $listunsubscribeHeader['rcptuid'] = 242644;
+        $listunsubscribeHeader['sendout'] = 114;
+        $result = $this->processlistunsubscribeHeader($listunsubscribeHeader);
+        */
 
         // try to connect to mail server
         $this->mailServer->connect(
@@ -342,8 +360,7 @@ class AnalyzeBounceMail extends AbstractTask
                 // process the mail
                 $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
                 if ($listunsubscribeHeader) {
-// TODO::check
-                    $result = $this->processlistunsubscribeHeader($message, $listunsubscribeHeader);
+                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader);
 
                 } else {
                     $result = $this->processBounceMail($message);
@@ -481,23 +498,6 @@ class AnalyzeBounceMail extends AbstractTask
         $bounceItem['recipient'] = $orgrecipient;
         $this->arBounces[] = $bounceItem;
 
-        /*
-        if ($orgrecipient == 'stephan.kirste@urz.uni-heidelberg.de') {
-            echo "<h1>V10</h1>";
-            echo print_r($bounceItem, true) . "<br><br>";
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "SUBJECT [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $subject . "\n\n", FILE_APPEND);
-
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "HEADER [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $header . "\n\n", FILE_APPEND);
-
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', "MESSAGE [" . date("Y-m-d H:i:s") . "] \n",FILE_APPEND);
-            file_put_contents('/data/www/sites/baden-wuerttemberg.de/current/bounce.log', $mailmessage . "\n\n", FILE_APPEND);
-            die("DDDD");
-        }
-        */
-
-
         return true;
     }
 
@@ -619,13 +619,15 @@ class AnalyzeBounceMail extends AbstractTask
                             'countoutofoffice' => $countoutofoffice,
                             'countfilterlist' => $countfilterlist,
                             'countmessagesize' => $countmessagesize,
-                            'countpossiblespam' => $countpossiblespam,
+                            'countpossiblespam' => $countpossiblespam
                         ];
+                    if ($nluid) {
+                        $tabeldata['newsletterid'] = $nluid;
+                    }
 
                     // INSERT
                     if (!$uidread) {
                         $tabeldata['crdate'] = $timestamp;
-                        $tabeldata['newsletterid'] = $nluid;
                         $connection->insert($table, $tabeldata);
 
                         // UPDATE
@@ -703,6 +705,7 @@ class AnalyzeBounceMail extends AbstractTask
                             $countfilterlist = $row['countfilterlist'];
                             $countmessagesize = $row['countmessagesize'];
                             $countpossiblespam = $row['countpossiblespam'];
+// $nluid
                         }
                     }
 
@@ -780,6 +783,7 @@ class AnalyzeBounceMail extends AbstractTask
                     if (!$uidread) {
                         $tabeldata['crdate'] = $timestamp;
                         $tabeldata['email'] = $email;
+                        $tabeldata['newsletterid'] = $nluid;
                         $connection->insert($table, $tabeldata);
 
                         // UPDATE
@@ -1138,79 +1142,71 @@ class AnalyzeBounceMail extends AbstractTask
 
     /**
      * process the ListunsubscribeHeader
-     * @param Mailmessage $mailmessage the message object
      * @param Array $listunsubscribeHeader
      * @return bool
      */
-    private function processlistunsubscribeHeader(Mailmessage $mailmessage, array $listunsubscribeHeader): bool
+    private function processlistunsubscribeHeader(array $listunsubscribeHeader): bool
     {
         $success = false;
+        $nluid = null;
+        $newsletter = null;
+        $recipientList = null;
 
-        if ($mailmessage && $listunsubscribeHeader) {
+        if ($listunsubscribeHeader) {
 
-            // read the recipient in tt_address
-            $queryBuilderReadTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-            $resultReadTTAddress = $queryBuilderReadTTAddress
-                ->select('uid', 'pid', 'email', 'tstamp', 'crdate')
-                ->from('tt_address')->where($queryBuilderReadTTAddress->expr()->eq('uid',
-                $queryBuilderReadTTAddress->createNamedParameter($listunsubscribeHeader['rcptuid'],
-                    Connection::PARAM_STR)), $queryBuilderReadTTAddress->expr()->eq('email',
-                $queryBuilderReadTTAddress->createNamedParameter($listunsubscribeHeader['rcptemail'],
-                    Connection::PARAM_STR)))->executeQuery();
-
-
-            if ($resultReadTTAddress) {
-                $rowReadTTAddress = $resultReadTTAddress->fetch();
-                if ($rowReadTTAddress) {
-                    $logpid = $rowReadTTAddress['pid'];
-                    $loguid = $rowReadTTAddress['uid'];
-                    $tstamp = $rowReadTTAddress['tstamp'];
-                    $crdate = $rowReadTTAddress['crdate'];
-
-                    if ($logpid && $loguid) {
-
-                        // result
-                        $success = true;
-
-                        // delete from tt_address
-                        $queryBuilderDeleteTTAddress = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tt_address');
-                        $affectedRows = $queryBuilderDeleteTTAddress
-                            ->delete('tt_address')
-                            ->where(
-                                $queryBuilderDeleteTTAddress->expr()->eq('uid',
-                                    $queryBuilderDeleteTTAddress->createNamedParameter($loguid,
-                                        Connection::PARAM_INT))
-                            )
-                            ->executeStatement();
-
-                        // delete log enabled?
-                        if (isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
-                            if ($this->conf['settings.']['deletelog.']['enabled'] == 1) {
-                                if ($this->conf['settings.']['deletelog.']['pid'] > 0) {
-
-                                    // write delete log entry (tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog)
-                                    $queryBuilderAddLog = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog');
-                                    $affectedRows = $queryBuilderAddLog
-                                        ->insert('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog')
-                                        ->values([
-                                            'pid' => $this->conf['settings.']['deletelog.']['pid'],
-                                            'origpid' => $logpid,
-                                            'origuid' => $loguid,
-                                            'email' => $listunsubscribeHeader['rcptemail'],
-                                            'tstamp' => $tstamp,
-                                            'crdate' => $crdate,
-                                            'deletetime' => time(),
-                                        ])
-                                        ->executeStatement();
-                                }
-
-                            }
-                        }
-                    }
+            // Get the newsletter fromt the sendout
+            if (isset($listunsubscribeHeader['sendout'])) {
+                $sendOutUid = $listunsubscribeHeader['sendout'];
+                if ($sendOutUid) {
+                    $sendout = $this->sendOutRepository->findByUid($sendOutUid);
                 }
-
+            }
+            if ($sendout) {
+                $newsletter = $sendout->getNewsletter();
             }
 
+            // get the recipientList
+            if ($newsletter) {
+                $recipientList = $newsletter->getRecipientList();
+            }
+
+            // remove the recipient from the list
+            if ($recipientList && $listunsubscribeHeader['rcptuid']) {
+
+                // set the pid
+                $logpid = $recipientList->getRecipientListPage() ?? 0;
+
+                try {
+                    $recipientList->removeRecipientByEmail($listunsubscribeHeader['rcptemail']);
+                } catch (\Exception $exception) {
+                    $logpid = null;
+                }
+
+                $this->persistenceManager->persistAll();
+
+                // delete log enabled?
+                if ($logpid && isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
+                    if ($this->conf['settings.']['deletelog.']['enabled'] == 1) {
+                        if ($this->conf['settings.']['deletelog.']['pid'] > 0) {
+
+                            // write delete log entry (tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog)
+                            $queryBuilderAddLog = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog');
+                            $affectedRows = $queryBuilderAddLog
+                                ->insert('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog')
+                                ->values([
+                                    'pid' => $this->conf['settings.']['deletelog.']['pid'],
+                                    'email' => $listunsubscribeHeader['rcptemail'],
+                                    'origpid' => $logpid,
+                                    'tstamp' => time(),
+                                    'crdate' => time(),
+                                    'deletetime' => time(),
+                                ])
+                                ->executeStatement();
+                        }
+
+                    }
+                }
+            }
         }
 
         return $success;

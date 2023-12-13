@@ -2,7 +2,9 @@
 
 namespace RSM\Rsmbouncemailprocessor\Domain\Model;
 
+use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
+use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 
 class Recipientreport extends AbstractEntity
 {
@@ -83,6 +85,7 @@ class Recipientreport extends AbstractEntity
     {
         $this->email = $email;
     }
+
 
     /**
      * @return int

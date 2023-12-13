@@ -166,7 +166,7 @@ module.tx_rsmbouncemailprocessor {
 
         }
 
-        # The delete log of deleted tt_adress entries
+        # The delete log of deleted adress entries
         deletelog{
             # enable the delete log
             enabled = 0
