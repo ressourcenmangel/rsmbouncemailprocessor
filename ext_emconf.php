@@ -14,7 +14,7 @@ $EM_CONF['rsmbouncemailprocessor'] = [
     'title' => 'RSM Bounce Mail Processor',
     'description' => 'A RSM TYPO3 extension for bounce mail procsessing',
     'category' => 'plugin',
-    'version' => '2.0.0',
+    'version' => '2.1.0',
     'state' => 'stable',
     'uploadfolder' => false,
     'clearcacheonload' => false,
@@ -26,7 +26,7 @@ $EM_CONF['rsmbouncemailprocessor'] = [
             'depends' =>
                 [
                     'typo3' => '11.5.0-11.5.99',
-                    'cute_mailing' => '3.0.0-3.99.99',
+                    'cute_mailing' => '4.0.0-4.99.99',
                 ],
             'conflicts' =>
                 [

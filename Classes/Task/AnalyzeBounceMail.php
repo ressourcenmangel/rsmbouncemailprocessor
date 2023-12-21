@@ -328,16 +328,6 @@ class AnalyzeBounceMail extends AbstractTask
         // init
         $this->initClass();
 
-        // TESTING @TODO
-        /*
-        $listunsubscribeHeader = [];
-        $listunsubscribeHeader[] = '';
-        $listunsubscribeHeader['rcptemail'] = 'wilsonrosalind@yahoo.co.uk';
-        $listunsubscribeHeader['rcptuid'] = 242644;
-        $listunsubscribeHeader['sendout'] = 114;
-        $result = $this->processlistunsubscribeHeader($listunsubscribeHeader);
-        */
-
         // try to connect to mail server
         $this->mailServer->connect(
             $this->server,
@@ -782,7 +772,6 @@ class AnalyzeBounceMail extends AbstractTask
                     if (!$uidread) {
                         $tabeldata['crdate'] = $timestamp;
                         $tabeldata['email'] = $email;
-                        $tabeldata['newsletterid'] = $nluid;
                         $connection->insert($table, $tabeldata);
 
                         // UPDATE
@@ -1207,7 +1196,6 @@ class AnalyzeBounceMail extends AbstractTask
                 }
             }
         }
-
         return $success;
     }
 
