@@ -70,7 +70,7 @@ class BouncemailController extends ActionController
     public function __construct(
         BouncereportRepository $bouncereportRepository,
         NewsletterRepository $newsletterRepository,
-        RecipientListRepositoryInterface $recipientListRepository,
+        RecipientListRepositoryInterface $recipientListRepository
     ) {
         $this->bouncereportRepository = $bouncereportRepository;
         $this->newsletterRepository = $newsletterRepository;
