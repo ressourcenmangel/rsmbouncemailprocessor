@@ -138,6 +138,7 @@ class ProcessBounceMail extends AbstractTask
                         $logvalue = $row[$key];
 
                         // remove the recipient from all recipient lists we've found
+                        $listid = 0;
                         foreach ($recipientLists as $recipientList) {
                             if ($recipientList && $row['email']) {
 
@@ -152,7 +153,7 @@ class ProcessBounceMail extends AbstractTask
                                 }
 
                                 // delete log enabled?
-                                if ($logpid) {
+                                if ($logpid && $listid < 1) {
                                     if (isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
                                         if ($this->conf['settings.']['deletelog.']['enabled'] == 1) {
                                             if ($this->conf['settings.']['deletelog.']['pid'] > 0) {
@@ -178,6 +179,7 @@ class ProcessBounceMail extends AbstractTask
 
                                 }
                             }
+                            $listid ++;
                         }
 
                         // Make persistent

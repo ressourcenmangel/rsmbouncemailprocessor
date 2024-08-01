@@ -95,14 +95,14 @@ class Mailmessage
      *
      * @var string
      */
-    protected string $plaintextMessage;
+    protected string $plaintextMessage = '';
 
     /**
      * This holds the html version of the email.
      *
      * @var string
      */
-    protected string $htmlMessage;
+    protected string $htmlMessage = '';
 
     /**
      * This is the date the email was sent.
@@ -116,14 +116,14 @@ class Mailmessage
      *
      * @var string
      */
-    protected string $subject;
+    protected string $subject = '';
 
     /**
      * This is the size of the email.
      *
      * @var int
      */
-    protected int $size;
+    protected int $size = 0;
 
     /**
      * This is an array containing information about the address the email came from.
@@ -235,15 +235,21 @@ class Mailmessage
     protected function loadMessage():bool
     {
 
-        /* First load the message overview information */
-
+        // First load the message overview information
         if (!is_object($messageOverview = $this->getOverview())) {
             return false;
         }
 
+        // check if the message has the standard properties
+        if(isset($messageOverview->subject)){
         $this->subject = MIME::decode($messageOverview->subject, self::$charset);
+        }
+        if(isset($messageOverview->date)){
         $this->date = strtotime($messageOverview->date);
+        }
+        if(isset($messageOverview->size)){
         $this->size = $messageOverview->size;
+        }
 
         foreach (self::$flagTypes as $flag) {
             $this->status[$flag] = ($messageOverview->$flag == 1);

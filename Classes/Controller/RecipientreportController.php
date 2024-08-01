@@ -64,7 +64,7 @@ class RecipientreportController extends ActionController
     public function __construct(
         RecipientreportRepository $recipientreportRepository,
         NewsletterRepository $newsletterRepository,
-        RecipientListRepositoryInterface $recipientListRepository,
+        RecipientListRepositoryInterface $recipientListRepository
     ) {
         $this->recipientreportRepository = $recipientreportRepository;
         $this->newsletterRepository = $newsletterRepository;
