@@ -16,7 +16,7 @@ return [
         'iconfile' => 'EXT:rsmbouncemailprocessor/Resources/Public/Icons/tx_rsmbouncemailprocessor_domain_model_recipientreport.svg'
     ],
     'types' => [
-        '1' => ['showitem' => 'email,timeprocessed,countunknownreason,countnosenderfound,countuserunknown,countquotaexceeded,countconnectionrefused,countheadererror,countoutofoffice,countfilterlist,countmessagesize,countpossiblespam, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language, sys_language_uid, l10n_parent, l10n_diffsource, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access'],
+        '1' => ['showitem' => 'email,timeprocessed,countunknownreason,countnosenderfound,countuserunknown,countquotaexceeded,countconnectionrefused,countheadererror,countoutofoffice,countfilterlist,countmessagesize,countpossiblespam,removed, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language, sys_language_uid, l10n_parent, l10n_diffsource, --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access'],
     ],
     'columns' => [
         'sys_language_uid' => [
@@ -163,6 +163,15 @@ return [
                 'type' => 'input',
                 'size' => 10,
                 'eval' => 'int',
+                'default' => 0
+            ],
+        ],
+        'removed' => [
+            'exclude' => false,
+            'label' => 'LLL:EXT:rsmbouncemailprocessor/Resources/Private/Language/locallang_db.xlf:tx_rsmbouncemailprocessor_domain_model_recipientreport.removed',
+            'config' => [
+                'type' => 'datetime',
+                'readOnly' => true,
                 'default' => 0
             ],
         ],

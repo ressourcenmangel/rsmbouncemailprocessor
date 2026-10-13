@@ -15,15 +15,10 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
-use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
-use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
-use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
 
 
@@ -34,8 +29,10 @@ use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
  */
 class ProcessBounceMail extends AbstractTask
 {
+    use LazyServicesTrait;
 
 
+    public $conf;
     /**
      * newsletterRepository object
      * @var NewsletterRepository
@@ -43,10 +40,6 @@ class ProcessBounceMail extends AbstractTask
     protected NewsletterRepository $newsletterRepository;
 
 
-    /**
-     * @var PersistenceManager
-     */
-    protected $persistenceManager = null;
 
     /**
      * initializes the class
@@ -60,9 +53,6 @@ class ProcessBounceMail extends AbstractTask
 
         /** @var NewsletterRepository $newsletterRepository */
         $this->newsletterRepository = GeneralUtility::makeInstance(NewsletterRepository::class);
-
-        /** @var PersistenceManager $persistenceManager */
-        $this->persistenceManager = GeneralUtility::makeInstance(PersistenceManager::class);
 
     }
 
@@ -84,7 +74,7 @@ class ProcessBounceMail extends AbstractTask
         $this->initClass();
 
         // first, query all newsletters grouped by recipient_list to get the recipient lists
-        $queryBuilderReadNewsletter = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_cutemailing_domain_model_newsletter');
+        $queryBuilderReadNewsletter = $this->connectionPool()->getQueryBuilderForTable('tx_cutemailing_domain_model_newsletter');
         $queryBuilderReadNewsletter = $queryBuilderReadNewsletter
             ->select('uid', 'recipient_list')
             ->from('tx_cutemailing_domain_model_newsletter')
@@ -93,15 +83,20 @@ class ProcessBounceMail extends AbstractTask
                 $queryBuilderReadNewsletter->expr()->eq('deleted', 0),
             )
             ->groupBy('recipient_list')
-            ->execute();
+            ->executeQuery();
 
         // save the recipient lists
-        while ($row = $queryBuilderReadNewsletter->fetch()) {
+        while ($row = $queryBuilderReadNewsletter->fetchAssociative()) {
             if ($row['uid']) {
                 $newsletter = $this->newsletterRepository->findByUid($row['uid']);
                 if ($newsletter) {
-                    // get the newsletters recipient list
-                    $recipientList = $newsletter->getRecipientList();
+                    // get the newsletters recipient list, cute_mailing throws if it cannot be loaded
+                    try {
+                        $recipientList = $newsletter->getRecipientList();
+                    } catch (\TypeError) {
+                        $recipientList = null;
+                        $this->logger?->warning('Recipient list of newsletter could not be loaded, skipped', ['newsletter' => $row['uid']]);
+                    }
                     if ($recipientList) {
                         $recipientLists[$recipientList->getUid()] = $recipientList;
                     }
@@ -111,7 +106,7 @@ class ProcessBounceMail extends AbstractTask
 //\TYPO3\CMS\Core\Utility\DebugUtility::debug($recipientLists, '$recipientLists');
 
         // Walk through the recipientreport and get those rcords that reached their limits
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)->getConnectionForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
+        $connection = $this->connectionPool()->getConnectionForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
 
         // Walk through all the delete limits
         if (isset($this->conf['settings.']['deletelimits.'])) {
@@ -121,69 +116,74 @@ class ProcessBounceMail extends AbstractTask
                 if ($key !== '' && $limit > 0) {
 
                     // query the affected records
-                    $queryBuilderReadRecipientreport = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
+                    $queryBuilderReadRecipientreport = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
                     $resultReadRecipientreport = $queryBuilderReadRecipientreport
                         ->select('*')
                         ->from('tx_rsmbouncemailprocessor_domain_model_recipientreport')
                         ->where(
                             $queryBuilderReadRecipientreport->expr()->gte($key,
                                 $queryBuilderReadRecipientreport->createNamedParameter($limit, Connection::PARAM_INT)),
+                            // already removed, nothing to do until the address bounces again
+                            $queryBuilderReadRecipientreport->expr()->eq('removed', 0),
                         )
-                        ->execute();
+                        ->executeQuery();
 
                     // Alle Records durchlaufen
-                    while ($row = $resultReadRecipientreport->fetch()) {
+                    while ($row = $resultReadRecipientreport->fetchAssociative()) {
 
                         // the email
                         $logvalue = $row[$key];
 
                         // remove the recipient from all recipient lists we've found
-                        $listid = 0;
+                        $removed = false;
                         foreach ($recipientLists as $recipientList) {
                             if ($recipientList && $row['email']) {
 
-                                // get the pid
-                                $logpid = $recipientList->getRecipientListPage() ?? 0;
-
-                                // remove the recipient
+                                // remove the recipient, the count tells whether the address was in this list
                                 try {
+                                    $countBefore = $recipientList->getRecipientsCount();
                                     $recipientList->removeRecipientByEmail($row['email']);
-                                } catch (\Exception $exception) {
-                                    $logpid = null;
+                                    $this->persistenceManager()->persistAll();
+                                    $removed = true;
+                                    $removedFromList = $recipientList->getRecipientsCount() < $countBefore;
+                                } catch (\Exception) {
+                                    $removedFromList = false;
                                 }
 
-                                // delete log enabled?
-                                if ($logpid && $listid < 1) {
-                                    if (isset($this->conf['settings.']['deletelog.']['enabled']) && isset($this->conf['settings.']['deletelog.']['pid'])) {
-                                        if ($this->conf['settings.']['deletelog.']['enabled'] == 1) {
-                                            if ($this->conf['settings.']['deletelog.']['pid'] > 0) {
-
-                                                // write delete log entry
-                                                $queryBuilderAddLog = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
-                                                $affectedRows = $queryBuilderAddLog
-                                                    ->insert('tx_rsmbouncemailprocessor_domain_model_deletelog')
-                                                    ->values([
-                                                        'pid' => $this->conf['settings.']['deletelog.']['pid'],
-                                                        'email' => $row['email'],
-                                                        'tstamp' => time(),
-                                                        'crdate' => time(),
-                                                        'deletetime' => time(),
-                                                        'reasontext' => $key,
-                                                        'reasonvalue' => $logvalue
-                                                    ])
-                                                    ->executeStatement();
-                                            }
-
-                                        }
+                                // one delete log entry per list the address has been removed from
+                                if ($removedFromList && (int)($this->conf['settings.']['deletelog.']['enabled'] ?? 0) === 1) {
+                                    $deletelogPid = (int)($this->conf['settings.']['deletelog.']['pid'] ?? 0);
+                                    if ($deletelogPid > 0) {
+                                        $queryBuilderAddLog = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
+                                        $queryBuilderAddLog
+                                            ->insert('tx_rsmbouncemailprocessor_domain_model_deletelog')
+                                            ->values([
+                                                'pid' => $deletelogPid,
+                                                'email' => $row['email'],
+                                                'origpid' => (int)($recipientList->getRecipientListPage() ?? 0),
+                                                'tstamp' => time(),
+                                                'crdate' => time(),
+                                                'deletetime' => time(),
+                                                'reasontext' => $key,
+                                                'reasonvalue' => $logvalue
+                                            ])
+                                            ->executeStatement();
                                     }
-
                                 }
                             }
-                            $listid ++;
                         }
 
                         // Make persistent
-                        $this->persistenceManager->persistAll();
+                        $this->persistenceManager()->persistAll();
+
+                        // mark the report, so it is shown as removed and not processed again
+                        if ($removed) {
+                            $connection->update(
+                                'tx_rsmbouncemailprocessor_domain_model_recipientreport',
+                                ['removed' => time(), 'tstamp' => time()],
+                                ['uid' => (int)$row['uid']]
+                            );
+                        }
 
                     }
                 }
@@ -206,8 +206,8 @@ class ProcessBounceMail extends AbstractTask
     ): array {
         $mysettings = [];
 
-        $configurationManager = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Configuration\ConfigurationManager::class);
-        $settings = $configurationManager->getConfiguration(\TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT,
+        $configurationManager = $this->configurationManager();
+        $settings = $configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT,
             'rsmbouncemailprocessor');
 
         if (isset($settings['module.']["$path."])) {
@@ -215,5 +215,4 @@ class ProcessBounceMail extends AbstractTask
         }
         return $mysettings;
     }
-
 }

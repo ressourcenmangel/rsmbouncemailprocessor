@@ -1,0 +1,9 @@
+To: bounce@cute-mailing.test
+X-TYPO3NLUID: {{SENDOUT_UID}}
+Date: Wed, 07 Oct 2026 10:00:00 +0200
+Message-ID: <{{MSGID}}@mx.example.test>
+MIME-Version: 1.0
+Subject: Mail delivery failed
+Content-Type: text/plain; charset=utf-8
+
+550 5.1.1 recipient unknown, but there is no From header and no recipient information at all.

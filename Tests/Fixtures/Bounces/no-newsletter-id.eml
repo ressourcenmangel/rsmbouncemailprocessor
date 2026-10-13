@@ -1,0 +1,12 @@
+From: MAILER-DAEMON@mx.example.test
+To: bounce@cute-mailing.test
+Date: Wed, 07 Oct 2026 10:00:00 +0200
+Message-ID: <{{MSGID}}@mx.example.test>
+MIME-Version: 1.0
+Subject: Mail delivery failed
+Content-Type: text/plain; charset=utf-8
+
+550 5.1.1 recipient unknown
+
+Final-Recipient: rfc822; {{EMAIL}}
+X-TYPO3RCPT: {{RCPT_B64}}

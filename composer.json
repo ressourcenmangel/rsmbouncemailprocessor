@@ -21,21 +21,37 @@
 		"TYPO3"
 	],
 	"support": {
-		"issues": ""
+		"issues": "https://github.com/undkonsorten/rsmbouncemailprocessor/issues"
 	},
-	"repositories": [
-		{
-			"type": "vcs",
-			"url": ""
-		}
-	],
 	"require": {
 		"ext-json": "*",
-		"php": "^8.1",
-		"typo3/cms-backend": "^11.5",
-		"typo3/cms-core": "^11.5",
-		"typo3/cms-extbase": "^11.5",
+		"php": "^8.3",
+		"typo3/cms-backend": "^13.4 || ^14.3",
+		"typo3/cms-core": "^13.4 || ^14.3",
+		"typo3/cms-extbase": "^13.4 || ^14.3",
+		"typo3/cms-scheduler": "^13.4 || ^14.3",
 		"undkonsorten/typo3-cute-mailing": "^4.0"
+	},
+	"require-dev": {
+		"php-parallel-lint/php-console-highlighter": "^1.0",
+		"php-parallel-lint/php-parallel-lint": "^1.4",
+		"typo3/testing-framework": "^9"
+	},
+	"config": {
+		"allow-plugins": {
+			"typo3/class-alias-loader": true,
+			"typo3/cms-composer-installers": true
+		},
+		"bin-dir": ".Build/bin",
+		"lock": false,
+		"preferred-install": {
+			"*": "dist"
+		},
+		"sort-packages": true,
+		"vendor-dir": ".Build/vendor",
+		"platform": {
+			"php": "8.3.0"
+		}
 	},
 	"suggest": {
 		"undkonsorten/typo3-cute-mailing-registeraddress": "Connector for recipient list if register/unregister subscriber with registeraddress extension.",
@@ -53,10 +69,12 @@
 	},
 	"extra": {
 		"typo3/cms": {
-			"extension-key": "rsmbouncemailprocessor"
+			"extension-key": "rsmbouncemailprocessor",
+			"web-dir": ".Build/public"
 		},
-		"branch-alias":{
-			"dev-main": "1.0.x-dev"
+		"branch-alias": {
+			"dev-main": "4.x-dev",
+			"dev-feature/typo3-13-14": "4.x-dev"
 		}
 	}
 }

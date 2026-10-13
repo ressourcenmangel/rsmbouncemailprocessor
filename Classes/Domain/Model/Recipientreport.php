@@ -2,11 +2,9 @@
 
 namespace RSM\Rsmbouncemailprocessor\Domain\Model;
 
-use TYPO3\CMS\Extbase\Annotation\ORM\Lazy;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
-use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 
-class Recipientreport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
+class Recipientreport extends AbstractEntity
 {
     /**
      * @var string
@@ -16,58 +14,65 @@ class Recipientreport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
     /**
      * @var int
      */
-    protected $countunknownreason;
+    protected $countunknownreason = 0;
 
     /**
      * @var int
      */
-    protected $countnosenderfound;
+    protected $countnosenderfound = 0;
 
     /**
      * @var int
      */
-    protected $countuserunknown;
+    protected $countuserunknown = 0;
 
     /**
      * @var int
      */
-    protected $countquotaexceeded;
+    protected $countquotaexceeded = 0;
 
     /**
      * @var int
      */
-    protected $countconnectionrefused;
+    protected $countconnectionrefused = 0;
 
     /**
      * @var int
      */
-    protected $countheadererror;
+    protected $countheadererror = 0;
 
     /**
      * @var int
      */
-    protected $countoutofoffice;
+    protected $countoutofoffice = 0;
 
     /**
      * @var int
      */
-    protected $countfilterlist;
+    protected $countfilterlist = 0;
 
     /**
      * @var int
      */
-    protected $countmessagesize;
+    protected $countmessagesize = 0;
 
     /**
      * @var int
      */
-    protected $countpossiblespam;
+    protected $countpossiblespam = 0;
 
 
     /**
      * @var int
      */
-    protected $countsum;
+    protected $countsum = 0;
+
+    /**
+     * Timestamp at which the process task removed the address from the recipient lists, 0 if not removed
+     *
+     * @var int
+     */
+    protected $removed = 0;
 
 
     /**
@@ -254,8 +259,21 @@ class Recipientreport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
      */
     public function getCountsum(): int
     {
-        return $this->countpossiblespam + $this->countunknownreason + $this->countnosenderfound + $this->countuserunknown + $this->countquotaexceeded + $this->countconnectionrefused + $this->countheadererror + $this->countoutofoffice + $this->countfilterlist + $this->countmessagesize + $this->countpossiblespam;
+        return $this->countunknownreason + $this->countnosenderfound + $this->countuserunknown + $this->countquotaexceeded + $this->countconnectionrefused + $this->countheadererror + $this->countoutofoffice + $this->countfilterlist + $this->countmessagesize + $this->countpossiblespam;
     }
 
+    public function getRemoved(): int
+    {
+        return $this->removed;
+    }
 
+    public function setRemoved(int $removed): void
+    {
+        $this->removed = $removed;
+    }
+
+    public function isRemoved(): bool
+    {
+        return $this->removed > 0;
+    }
 }

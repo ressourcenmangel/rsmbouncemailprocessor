@@ -166,6 +166,12 @@ module.tx_rsmbouncemailprocessor {
 
         }
 
+        # Page for recipient reports of bounces whose newsletter could not be found.
+        # 0 uses the pid of the delete log, if that is not set either the recipient report is not saved.
+        recipientreport {
+            fallbackpid = 0
+        }
+
         # The delete log of deleted adress entries
         deletelog{
             # enable the delete log

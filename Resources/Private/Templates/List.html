@@ -1,0 +1,149 @@
+<html
+	data-namespace-typo3-fluid="true"
+	xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+	xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+	lang="en">
+
+<f:layout name="Backend"/>
+
+<f:section name="content">
+	<f:render arguments="{_all}" section="Newsletters"/>
+</f:section>
+
+<f:section name="Reason">
+	<span class="badge text-bg-{reason.severity} rsm-reason"
+		title="{f:translate(key: 'module.bouncereports.list.tableheader.{reason.countKey}', extensionName: 'Rsmbouncemailprocessor')}: {reason.count} ({reason.percent -> f:format.number(decimals: 1, decimalSeparator: ',', thousandsSeparator: '.')} %)">
+		<f:translate key="module.bouncereports.list.tableheader.{reason.countKey}" extensionName="Rsmbouncemailprocessor">{reason.name}</f:translate>
+		<span class="rsm-reason-count">{reason.count}</span>
+	</span>
+</f:section>
+
+<f:section name="Newsletters">
+
+	<f:variable name="confirmTitle"><f:translate key="module.delete.confirm.title" extensionName="Rsmbouncemailprocessor">Delete report</f:translate></f:variable>
+	<f:variable name="confirmText"><f:translate key="module.delete.confirm.text" extensionName="Rsmbouncemailprocessor">Do you really want to delete this report? This cannot be undone.</f:translate></f:variable>
+	<f:variable name="confirmCancel"><f:translate key="module.delete.confirm.cancel" extensionName="Rsmbouncemailprocessor">Cancel</f:translate></f:variable>
+	<f:variable name="confirmOk"><f:translate key="module.delete.confirm.ok" extensionName="Rsmbouncemailprocessor">Delete</f:translate></f:variable>
+
+	<h1>
+		<f:translate key="module.bouncereports.list.title">Bounce Reports</f:translate>
+	</h1>
+
+	<div class="row g-3 mb-4 rsm-summary">
+		<div class="col-6 col-lg-3">
+			<div class="card h-100"><div class="card-body">
+				<div class="rsm-summary-label"><f:translate key="module.summary.reports" extensionName="Rsmbouncemailprocessor">Reports</f:translate></div>
+				<div class="rsm-summary-value">{summary.reports}</div>
+			</div></div>
+		</div>
+		<div class="col-6 col-lg-3">
+			<div class="card h-100"><div class="card-body">
+				<div class="rsm-summary-label"><f:translate key="module.summary.sent" extensionName="Rsmbouncemailprocessor">Mails sent</f:translate></div>
+				<div class="rsm-summary-value"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{summary.sent}</f:format.number></div>
+			</div></div>
+		</div>
+		<div class="col-6 col-lg-3">
+			<div class="card h-100"><div class="card-body">
+				<div class="rsm-summary-label"><f:translate key="module.summary.bounces" extensionName="Rsmbouncemailprocessor">Bounces</f:translate></div>
+				<div class="rsm-summary-value"><f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{summary.bounces}</f:format.number></div>
+			</div></div>
+		</div>
+		<div class="col-6 col-lg-3">
+			<div class="card h-100"><div class="card-body">
+				<div class="rsm-summary-label"><f:translate key="module.summary.rate" extensionName="Rsmbouncemailprocessor">Bounce rate</f:translate></div>
+				<div class="rsm-summary-value">
+					<span class="badge text-bg-{summary.severity}"><f:format.number decimals="1" decimalSeparator="," thousandsSeparator=".">{summary.bouncePercent}</f:format.number> %</span>
+				</div>
+			</div></div>
+		</div>
+	</div>
+
+	<div class="table-fit">
+		<table class="table table-hover align-middle rsm-table">
+			<thead>
+				<tr>
+					<th><f:translate key="module.bouncereports.list.tableheader.newsletter" extensionName="Rsmbouncemailprocessor">Newsletter</f:translate></th>
+					<th class="rsm-col-sent"><f:translate key="module.bouncereports.list.tableheader.sent" extensionName="Rsmbouncemailprocessor">Sent</f:translate></th>
+					<th class="rsm-col-rate"><f:translate key="module.bouncereports.list.tableheader.rate" extensionName="Rsmbouncemailprocessor">Bounce rate</f:translate></th>
+					<th><f:translate key="module.bouncereports.list.tableheader.reasons" extensionName="Rsmbouncemailprocessor">Reasons</f:translate></th>
+					<th class="text-end"><f:translate key="module.bouncereports.list.tableheader.action">Action</f:translate></th>
+				</tr>
+			</thead>
+			<tbody>
+				<f:for each="{rows}" as="row">
+					<tr>
+						<td>
+							<f:if condition="{row.newsletter}">
+								<f:then>
+									<strong>{row.newsletter.title}</strong>
+									<div class="text-body-secondary small">#{row.newsletter.uid}</div>
+								</f:then>
+								<f:else>
+									<em><f:translate key="module.bouncereports.list.tableheader.unknownnewsletter">Unknown Newsletter</f:translate></em>
+								</f:else>
+							</f:if>
+							<div class="text-body-secondary small">
+								<f:translate key="module.bouncereports.list.tableheader.lastprocessed" extensionName="Rsmbouncemailprocessor">Last analysed</f:translate>:
+								<f:format.date format="d.m.Y H:i">{row.report.timeprocessed}</f:format.date>
+							</div>
+						</td>
+						<td class="rsm-col-sent">
+							<div>
+								<f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{row.sent}</f:format.number>
+								<span class="text-body-secondary">/ <f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{row.planned}</f:format.number></span>
+							</div>
+							<div class="progress rsm-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{row.sentPercent -> f:format.number(decimals: 0)}">
+								<div class="progress-bar bg-secondary" style="width: {row.sentPercent -> f:format.number(decimals: 1, decimalSeparator: '.', thousandsSeparator: '')}%"></div>
+							</div>
+						</td>
+						<td class="rsm-col-rate">
+							<div>
+								<span class="badge text-bg-{row.severity}"><f:format.number decimals="1" decimalSeparator="," thousandsSeparator=".">{row.bouncePercent}</f:format.number> %</span>
+								<span class="text-body-secondary small">
+									<f:format.number decimals="0" decimalSeparator="," thousandsSeparator=".">{row.bounces}</f:format.number>
+									<f:translate key="module.bouncereports.list.bounced" extensionName="Rsmbouncemailprocessor">bounced</f:translate>
+								</span>
+								<f:if condition="{row.moreBouncesThanSent}">
+									<span class="text-warning rsm-hint" title="{f:translate(key: 'module.bouncereports.list.morebouncesthansent', extensionName: 'Rsmbouncemailprocessor')}">
+										<core:icon identifier="actions-exclamation-circle" size="small" />
+									</span>
+								</f:if>
+							</div>
+							<div class="progress rsm-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+								<div class="progress-bar bg-success" style="width: {row.deliveredPercent -> f:format.number(decimals: 1, decimalSeparator: '.', thousandsSeparator: '')}%"
+									title="{f:translate(key: 'module.bouncereports.list.delivered', extensionName: 'Rsmbouncemailprocessor')}: {row.delivered}"></div>
+								<div class="progress-bar bg-{row.severity}" style="width: {row.bouncePercent -> f:format.number(decimals: 1, decimalSeparator: '.', thousandsSeparator: '')}%"
+									title="{f:translate(key: 'module.bouncereports.list.bounced', extensionName: 'Rsmbouncemailprocessor')}: {row.bounces}"></div>
+							</div>
+						</td>
+						<td>
+							<f:if condition="{row.reasons}">
+								<f:then>
+									<div class="rsm-reasons">
+										<f:for each="{row.reasons}" as="reason">
+											<f:render section="Reason" arguments="{reason: reason}" />
+										</f:for>
+									</div>
+								</f:then>
+								<f:else>
+									<span class="text-body-secondary"><f:translate key="module.bouncereports.list.nobounces" extensionName="Rsmbouncemailprocessor">No bounces</f:translate></span>
+								</f:else>
+							</f:if>
+						</td>
+						<td class="text-end">
+							<f:link.action
+								action="delete"
+								arguments="{bouncereport: row.report}"
+								class="btn btn-default btn-sm t3js-modal-trigger"
+								data="{severity: 'warning', title: confirmTitle, bs-content: confirmText, button-close-text: confirmCancel, button-ok-text: confirmOk}"
+								title="{f:translate(key: 'module.bouncereports.list.delete', extensionName: 'Rsmbouncemailprocessor')}">
+								<core:icon identifier="actions-edit-delete" size="small" />
+							</f:link.action>
+						</td>
+					</tr>
+				</f:for>
+			</tbody>
+		</table>
+	</div>
+</f:section>
+</html>

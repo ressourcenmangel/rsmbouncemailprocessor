@@ -1,0 +1,12 @@
+"pages"
+,"uid","pid","title","doktype","sorting"
+,1,0,"Root",1,1
+,94,1,"Newsletters",254,1
+,96,1,"Other newsletters",254,2
+"tx_cutemailing_domain_model_recipientlist"
+,"uid","pid","name","record_type","recipient_list_page"
+,1,94,"List","Undkonsorten\CuteMailing\Domain\Model\LineSeparatedRecipientList",0
+"tx_cutemailing_domain_model_newsletter"
+,"uid","pid","title","recipient_list"
+,1,94,"Newsletter A",1
+,2,96,"Newsletter B",1

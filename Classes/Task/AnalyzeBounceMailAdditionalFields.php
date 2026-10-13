@@ -13,10 +13,9 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
+use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use TYPO3\CMS\Core\Messaging\FlashMessage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\AbstractAdditionalFieldProvider;
 use TYPO3\CMS\Scheduler\Controller\SchedulerModuleController;
@@ -31,11 +30,7 @@ use TYPO3\CMS\Scheduler\Task\AbstractTask;
  */
 class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
 {
-    public function __construct()
-    {
-        // add locallang file
-        $this->getLanguangeService()->includeLLFile('EXT:rsmbouncemailprocessor/Resources/Private/Language/locallang_mod.xlf');
-    }
+    private const LANGUAGE_FILE = 'LLL:EXT:rsmbouncemailprocessor/Resources/Private/Language/locallang_mod.xlf:';
 
     /**
      * This method is used to define new fields for adding or editing a task
@@ -100,15 +95,15 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
      * @param AnalyzeBounceMail $task Reference to the scheduler backend module
      * @return void
      */
-    public function saveAdditionalFields(array $submittedData, AbstractTask $task)
+    public function saveAdditionalFields(array $submittedData, AbstractTask $task): void
     {
         $task->setServer($submittedData['bounceServer']);
         $task->setPort((int)$submittedData['bouncePort']);
         $task->setUser($submittedData['bounceUser']);
         $task->setPassword($submittedData['bouncePassword']);
         $task->setService($submittedData['bounceService']);
-        $task->setMaxProcessed($submittedData['bounceProcessed']);#
-        $task->setDeletealways($submittedData['bounceDeletealways'] ?? false);
+        $task->setMaxProcessed((int)$submittedData['bounceProcessed']);
+        $task->setDeletealways((bool)($submittedData['bounceDeletealways'] ?? false));
     }
 
     /**
@@ -121,39 +116,34 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
     public function validateAdditionalFields(array &$submittedData, SchedulerModuleController $schedulerModule)
     {
         // check if PHP IMAP is installed
-        if (extension_loaded('imap')) {
-
-            // try connect to mail server
-            /** @var Mailserver $mailServer */
-            $mailServer = GeneralUtility::makeInstance(Mailserver::class);
-            $mailServer->connect(
-                $submittedData['bounceServer'],
-                $submittedData['bounceUser'],
-                $submittedData['bouncePassword'],
-                (int)$submittedData['bouncePort'],
-                $submittedData['bounceService']
-            );
-
-            try {
-                $imapStream = $mailServer->getImapStream();
-                $return = true;
-            } catch (\Exception $e) {
-                $this->addMessage(
-                    $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.dataVerification') .
-                    $e->getMessage(),
-                    FlashMessage::ERROR
-                );
-                $return = true;
-            }
-        } else {
+        if (!extension_loaded('imap')) {
             $this->addMessage(
-                $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.phpImapError'),
-                FlashMessage::ERROR
+                $this->translate('scheduler.rsmbouncemail.phpImapError'),
+                ContextualFeedbackSeverity::ERROR
             );
-            $return = true;
+            return false;
         }
 
-        return $return;
+        // try connect to mail server
+        /** @var Mailserver $mailServer */
+        $mailServer = GeneralUtility::makeInstance(Mailserver::class);
+        $connected = $mailServer->connect(
+            (string)($submittedData['bounceServer'] ?? ''),
+            $submittedData['bounceUser'] ?? '',
+            $submittedData['bouncePassword'] ?? '',
+            (int)($submittedData['bouncePort'] ?? 143),
+            (string)($submittedData['bounceService'] ?? 'imap')
+        );
+
+        if ($connected === null) {
+            $this->addMessage(
+                $this->translate('scheduler.rsmbouncemail.dataVerification'),
+                ContextualFeedbackSeverity::ERROR
+            );
+            return false;
+        }
+
+        return true;
     }
 
     protected function createAdditionalFields($fieldName, $fieldHTML)
@@ -161,19 +151,21 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
         // create server input field
         return [
             'code'     => $fieldHTML,
-            'label'    => $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.' . $fieldName),
+            'label'    => $this->translate('scheduler.rsmbouncemail.' . $fieldName),
             'cshKey'   => $fieldName,
-            'cshLabel' => $this->getLanguangeService()->getLL('scheduler.rsmbouncemail.csh.' . $fieldName)
+            'cshLabel' => $this->translate('scheduler.rsmbouncemailcsh.' . $fieldName)
         ];
     }
 
     /**
-     * Get languange service
-     *
-     * @return LanguageService
+     * Translate a label of the module language file (works with TYPO3 13 and 14)
      */
-    protected function getLanguangeService()
+    protected function translate(string $key): string
     {
-        return $GLOBALS['LANG'];
+        $languageService = $GLOBALS['LANG'] ?? null;
+        if (!$languageService instanceof LanguageService) {
+            return $key;
+        }
+        return $languageService->sL(self::LANGUAGE_FILE . $key) ?: $key;
     }
 }

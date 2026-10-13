@@ -1,0 +1,30 @@
+"pages"
+,"uid","pid","title","doktype","sorting"
+,1,0,"Root",1,1
+,94,1,"Cute Mailing",254,1
+,95,94,"Recipient list",254,1
+"be_users"
+,"uid","pid","username","admin","password"
+,1,0,"admin",1,"$2y$12$VvEsbP.e0eiy5hdOKn6kjOeCGgLPpjHKAM1VuAsFXwRcRiOz0EIxe"
+"tx_cutemailing_domain_model_recipientlist"
+,"uid","pid","name","record_type","recipient_list_page"
+,1,94,"List","Undkonsorten\CuteMailingTtAddress\Domain\Model\TtAddressRecipientList",95
+"tx_cutemailing_domain_model_newsletter"
+,"uid","pid","title","recipient_list","send_outs"
+,1,94,"Newsletter with sendouts",1,1
+,2,94,"Newsletter without sendouts",1,0
+,3,94,"Newsletter with more bounces than mails",1,1
+"tx_cutemailing_domain_model_sendout"
+,"uid","pid","newsletter","total","completed"
+,1,94,1,10,10
+,2,94,3,3,3
+"tx_rsmbouncemailprocessor_domain_model_bouncereport"
+,"uid","pid","newsletterid","timeprocessed","countmails","countprocessed","countuserunknown","countquotaexceeded"
+,1,94,1,1700000000,4,3,2,1
+,2,94,2,1700000000,0,0,0,0
+,3,94,0,1700000000,2,2,0,0
+,4,94,3,1700000000,19,17,17,0
+"tx_rsmbouncemailprocessor_domain_model_recipientreport"
+,"uid","pid","email","countuserunknown","countquotaexceeded"
+,1,94,"user1@example.test",2,0
+,2,94,"user2@example.test",0,1

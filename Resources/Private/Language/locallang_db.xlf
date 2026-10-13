@@ -87,6 +87,9 @@
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.countpossiblespam">
 				<source>Possible Spam (XSPAM)</source>
 			</trans-unit>
+			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_recipientreport.removed">
+				<source>Removed from the recipient lists on</source>
+			</trans-unit>
 
 			<trans-unit id="tx_rsmbouncemailprocessor_domain_model_deletelog">
 				<source>Bounce Delete Log</source>
