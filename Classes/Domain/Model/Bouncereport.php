@@ -6,12 +6,12 @@ use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 use TYPO3\CMS\Extbase\Persistence\Generic\LazyLoadingProxy;
 
-class Bouncereport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
+class Bouncereport extends AbstractEntity
 {
     /**
      * @var Newsletter
-     * @Lazy
      */
+    #[Lazy]
     protected $newsletterid;
 
     /**
@@ -22,62 +22,62 @@ class Bouncereport extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
     /**
      * @var int
      */
-    protected $countmails;
+    protected $countmails = 0;
 
     /**
      * @var int
      */
-    protected $countprocessed;
+    protected $countprocessed = 0;
 
     /**
      * @var int
      */
-    protected $countunknownreason;
+    protected $countunknownreason = 0;
 
     /**
      * @var int
      */
-    protected $countnosenderfound;
+    protected $countnosenderfound = 0;
 
     /**
      * @var int
      */
-    protected $countuserunknown;
+    protected $countuserunknown = 0;
 
     /**
      * @var int
      */
-    protected $countquotaexceeded;
+    protected $countquotaexceeded = 0;
 
     /**
      * @var int
      */
-    protected $countconnectionrefused;
+    protected $countconnectionrefused = 0;
 
     /**
      * @var int
      */
-    protected $countheadererror;
+    protected $countheadererror = 0;
 
     /**
      * @var int
      */
-    protected $countoutofoffice;
+    protected $countoutofoffice = 0;
 
     /**
      * @var int
      */
-    protected $countfilterlist;
+    protected $countfilterlist = 0;
 
     /**
      * @var int
      */
-    protected $countmessagesize;
+    protected $countmessagesize = 0;
 
     /**
      * @var int
      */
-    protected $countpossiblespam;
+    protected $countpossiblespam = 0;
 
     /**
      * @return Newsletter|null

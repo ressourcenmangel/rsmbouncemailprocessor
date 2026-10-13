@@ -15,14 +15,9 @@ namespace RSM\Rsmbouncemailprocessor\Task;
  *
  * The TYPO3 project - inspiring people to share!
  */
-
-use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
-use TYPO3\CMS\Core\Database\ConnectionPool;
-use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
-use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
-use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
 use Undkonsorten\Taskqueue\Domain\Model\TaskInterface;
 
@@ -33,8 +28,14 @@ use Undkonsorten\Taskqueue\Domain\Model\TaskInterface;
  */
 class CleanTaskQueue extends AbstractTask
 {
+    use LazyServicesTrait;
 
 
+    public $conf;
+    /**
+     * @var NewsletterRepository
+     */
+    public $newsletterRepository;
     /**
      * initializes the class
      *
@@ -78,7 +79,7 @@ class CleanTaskQueue extends AbstractTask
             $datelimit = time() - ($deletesuceededafterdays * 86400);
 
             // delete from tx_taskqueue_domain_model_task
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_taskqueue_domain_model_task');
+            $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_taskqueue_domain_model_task');
             $queryBuilder->getRestrictions()->removeAll();
             $affectedRows = $queryBuilder
                 ->delete('tx_taskqueue_domain_model_task')
@@ -101,7 +102,7 @@ class CleanTaskQueue extends AbstractTask
             $datelimit = time() - ($deletesuceededafterdays * 86400);
 
             // delete from tx_taskqueue_domain_model_task
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_bouncereport');
+            $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_bouncereport');
             $queryBuilder->getRestrictions()->removeAll();
             $affectedRows = $queryBuilder
                 ->delete('tx_rsmbouncemailprocessor_domain_model_bouncereport')
@@ -123,7 +124,7 @@ class CleanTaskQueue extends AbstractTask
             $datelimit = time() - ($deletesuceededafterdays * 86400);
 
             // delete from tx_taskqueue_domain_model_task
-            $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
+            $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
             $queryBuilder->getRestrictions()->removeAll();
             $affectedRows = $queryBuilder
                 ->delete('tx_rsmbouncemailprocessor_domain_model_deletelog')
@@ -152,13 +153,12 @@ class CleanTaskQueue extends AbstractTask
     {
         $mysettings = [];
 
-        $configurationManager = GeneralUtility::makeInstance(\TYPO3\CMS\Extbase\Configuration\ConfigurationManager::class);
-        $settings = $configurationManager->getConfiguration(\TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT, 'rsmbouncemailprocessor');
+        $configurationManager = $this->configurationManager();
+        $settings = $configurationManager->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FULL_TYPOSCRIPT, 'rsmbouncemailprocessor');
 
         if (isset($settings['module.']["$path."])) {
             $mysettings = $settings['module.']["$path."];
         }
         return $mysettings;
     }
-
 }

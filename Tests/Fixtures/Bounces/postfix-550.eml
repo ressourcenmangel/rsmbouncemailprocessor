@@ -1,0 +1,19 @@
+From: MAILER-DAEMON@mx.example.test
+To: bounce@cute-mailing.test
+Date: Wed, 07 Oct 2026 10:00:00 +0200
+Message-ID: <{{MSGID}}@mx.example.test>
+MIME-Version: 1.0
+Subject: Undelivered Mail Returned to Sender
+Content-Type: text/plain; charset=utf-8
+
+This is the mail system at host mx.example.test.
+The Postfix program
+
+<{{EMAIL}}>: host mx.example.test[10.0.0.1] said: 550 5.1.1 <{{EMAIL}}>: Recipient address rejected: User unknown
+
+--- Original message headers ---
+Return-Path: <bounce@cute-mailing.test>
+X-TYPO3RCPT: {{RCPT_B64}}
+X-TYPO3NLUID: {{SENDOUT_UID}}
+Subject: Newsletter
+To: {{EMAIL}}

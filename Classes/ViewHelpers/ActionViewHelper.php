@@ -1,12 +1,16 @@
 <?php
 namespace RSM\Rsmbouncemailprocessor\ViewHelpers;
 
+use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 
-class ActionViewHelper extends \TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHelper {
+class ActionViewHelper extends AbstractViewHelper {
 
-    public function initializeArguments()
+    public function __construct(private readonly UriBuilder $uriBuilder)
+    {
+    }
+    public function initializeArguments(): void
     {
         parent::initializeArguments();
 
@@ -25,7 +29,7 @@ class ActionViewHelper extends \TYPO3Fluid\Fluid\Core\ViewHelper\AbstractViewHel
         $action = trim(strval($this->arguments['action']));
 
         // Migrated
-        $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
+        $uriBuilder = $this->uriBuilder;
         $uriParams = [
             $action => [
                 $table => [

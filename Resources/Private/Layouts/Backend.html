@@ -1,0 +1,38 @@
+<html data-namespace-typo3-fluid="true" lang="en"
+	xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:f="http://typo3.org/ns/TYPO3/Fluid/ViewHelpers">
+
+<f:render section="Before" arguments="{_all}" optional="true" />
+
+<div class="module {moduleClass}" data-module-id="{moduleId}" data-module-name="{moduleName}">
+	<f:if condition="{docHeader.enabled}">
+		<f:render partial="DocHeader" arguments="{docHeader:docHeader}" />
+	</f:if>
+	<div class="module-body t3js-module-body rsm-bounce">
+		<f:flashMessages queueIdentifier="{flashMessageQueueIdentifier}" />
+
+		<ul class="nav nav-tabs rsm-bounce-tabs" role="tablist" data-active-tab="{activeTab}">
+			<li class="nav-item" role="presentation">
+				<f:link.action action="list" controller="Bouncemail"
+					class="nav-link {f:if(condition: '{activeTab} == \'bounces\'', then: 'active')}">
+					<f:translate key="module.bouncereports.link.action.bouncereport">Bounce Report</f:translate>
+				</f:link.action>
+			</li>
+			<li class="nav-item" role="presentation">
+				<f:link.action action="recipientlist" controller="Recipientreport"
+					class="nav-link {f:if(condition: '{activeTab} == \'recipients\'', then: 'active')}">
+					<f:translate key="module.bouncereports.link.action.recipientreport">Recipient Report</f:translate>
+				</f:link.action>
+			</li>
+		</ul>
+
+		<f:be.pageRenderer
+			includeCssFiles="{0: 'EXT:rsmbouncemailprocessor/Resources/Public/Css/Modules.css'}"
+			pageTitle="Bouncemail"/>
+		<f:render section="content" arguments="{_all}" optional="true" />
+	</div>
+</div>
+
+<f:render section="After" arguments="{_all}" optional="true" />
+
+</html>

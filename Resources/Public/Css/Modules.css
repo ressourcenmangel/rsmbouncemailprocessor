@@ -1,10 +1,61 @@
-th.bouncemail_right,
-td.bouncemail_right{
-	text-align: right
+/* Backend module "Bounce Mails". Everything is scoped to .rsm-bounce, colors follow the backend theme (light/dark). */
+
+.rsm-bounce .rsm-summary-label {
+	color: var(--bs-secondary-color, #6c757d);
+	font-size: .8125rem;
+	text-transform: uppercase;
+	letter-spacing: .04em;
 }
-tr{
-	font-size:11px;
+
+.rsm-bounce .rsm-summary-value {
+	font-size: 1.75rem;
+	font-weight: 600;
+	line-height: 1.3;
 }
-td{
-	font-size:11px;
+
+.rsm-bounce .rsm-summary-value .badge {
+	font-size: 1.125rem;
+}
+
+.rsm-bounce .rsm-table thead th {
+	white-space: nowrap;
+}
+
+.rsm-bounce .rsm-col-sent {
+	min-width: 9rem;
+}
+
+.rsm-bounce .rsm-col-rate {
+	min-width: 12rem;
+}
+
+.rsm-bounce .rsm-progress {
+	height: .5rem;
+	margin-top: .25rem;
+	background-color: var(--bs-tertiary-bg, #e9ecef);
+}
+
+.rsm-bounce .rsm-reasons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .375rem;
+}
+
+.rsm-bounce .rsm-reason {
+	font-weight: 500;
+}
+
+.rsm-bounce .rsm-reason-count {
+	margin-left: .25rem;
+	padding-left: .375rem;
+	border-left: 1px solid currentColor;
+	opacity: .85;
+}
+
+.rsm-bounce .rsm-hint {
+	cursor: help;
+}
+
+.rsm-bounce-tabs {
+	margin-bottom: 1.25rem;
 }

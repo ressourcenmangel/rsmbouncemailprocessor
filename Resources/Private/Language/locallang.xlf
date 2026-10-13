@@ -25,6 +25,10 @@
 				<source>Delete</source>
 			</trans-unit>
 
+			<trans-unit id="module.bouncereports.list.morebouncesthansent">
+				<source>More bounces than sent mails, the percentage is capped at 100 %</source>
+			</trans-unit>
+
 			<trans-unit id="module.bouncereports.list.tableheader.title">
 				<source>Title</source>
 			</trans-unit>
@@ -140,6 +144,93 @@
 			</trans-unit>
 
 
+			<trans-unit id="message.choosePage.hint">
+				<source>Reports are created by the scheduler task "RSM analyze bounce mail" and are stored on the page of the newsletter. Select that page, or a page above it, in the page tree.</source>
+			</trans-unit>
+			<trans-unit id="module.summary.reports">
+				<source>Reports</source>
+			</trans-unit>
+			<trans-unit id="module.summary.sent">
+				<source>Mails sent</source>
+			</trans-unit>
+			<trans-unit id="module.summary.bounces">
+				<source>Bounces</source>
+			</trans-unit>
+			<trans-unit id="module.summary.rate">
+				<source>Bounce rate</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.newsletter">
+				<source>Newsletter</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.sent">
+				<source>Sent</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.rate">
+				<source>Bounce rate</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.reasons">
+				<source>Reasons</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.tableheader.lastprocessed">
+				<source>Last analysed</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.nobounces">
+				<source>No bounces</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.delivered">
+				<source>Delivered</source>
+			</trans-unit>
+			<trans-unit id="module.bouncereports.list.bounced">
+				<source>bounced</source>
+			</trans-unit>
+			<trans-unit id="module.delete.confirm.title">
+				<source>Delete report</source>
+			</trans-unit>
+			<trans-unit id="module.delete.confirm.text">
+				<source>Do you really want to delete this report? This cannot be undone.</source>
+			</trans-unit>
+			<trans-unit id="module.delete.confirm.ok">
+				<source>Delete</source>
+			</trans-unit>
+			<trans-unit id="module.delete.confirm.cancel">
+				<source>Cancel</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.searchstring">
+				<source>Email contains</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.searchamount">
+				<source>Minimum bounces</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.status">
+				<source>Status</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.status.all">
+				<source>All</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.status.open">
+				<source>Not removed</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.status.removed">
+				<source>Removed</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.submit">
+				<source>Search</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.filter.reset">
+				<source>Reset</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.count">
+				<source>%s recipients</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.nomatch">
+				<source>No recipient reports match the filter.</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.removed">
+				<source>removed on %s</source>
+			</trans-unit>
+			<trans-unit id="module.recipientreports.list.removed.title">
+				<source>The address has been removed from the recipient lists by the process task</source>
+			</trans-unit>
 		</body>
 	</file>
 </xliff>

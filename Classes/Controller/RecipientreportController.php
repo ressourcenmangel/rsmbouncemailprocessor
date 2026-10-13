@@ -3,34 +3,20 @@ declare(strict_types=1);
 
 namespace RSM\Rsmbouncemailprocessor\Controller;
 
-use Doctrine\DBAL\DBALException;
-use PharIo\Manifest\InvalidUrlException;
 use Psr\Http\Message\ResponseInterface;
-use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Backend\Template\ModuleTemplateFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\RootlineUtility;
-use TYPO3\CMS\Extbase\Configuration\Exception\InvalidConfigurationTypeException;
 use TYPO3\CMS\Extbase\Http\ForwardResponse;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
-use TYPO3\CMS\Extbase\Mvc\Exception\InvalidArgumentNameException;
-use TYPO3\CMS\Extbase\Mvc\Exception\NoSuchArgumentException;
 use TYPO3\CMS\Extbase\Mvc\Exception\StopActionException;
 use TYPO3\CMS\Extbase\Persistence\Exception\IllegalObjectTypeException;
-use TYPO3\CMS\Extbase\Persistence\Exception\UnknownObjectException;
-use TYPO3\CMS\Extbase\Property\TypeConverter\DateTimeConverter;
-use TYPO3\CMS\Extbase\SignalSlot\Exception\InvalidSlotException;
-use TYPO3\CMS\Extbase\SignalSlot\Exception\InvalidSlotReturnException;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
-use TYPO3\CMS\Fluid\View\StandaloneView;
 
 
 use RSM\Rsmbouncemailprocessor\Domain\Model\Recipientreport;
 use RSM\Rsmbouncemailprocessor\Domain\Repository\RecipientreportRepository;
-
-
-use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
-use Undkonsorten\CuteMailing\Domain\Model\NewsletterTask;
-use Undkonsorten\CuteMailing\Domain\Model\RecipientListInterface;
+use RSM\Rsmbouncemailprocessor\Service\ReportPresenter;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
 use Undkonsorten\CuteMailing\Domain\Repository\RecipientListRepositoryInterface;
 
@@ -64,7 +50,9 @@ class RecipientreportController extends ActionController
     public function __construct(
         RecipientreportRepository $recipientreportRepository,
         NewsletterRepository $newsletterRepository,
-        RecipientListRepositoryInterface $recipientListRepository
+        RecipientListRepositoryInterface $recipientListRepository,
+        private readonly ModuleTemplateFactory $moduleTemplateFactory,
+        private readonly ReportPresenter $reportPresenter
     ) {
         $this->recipientreportRepository = $recipientreportRepository;
         $this->newsletterRepository = $newsletterRepository;
@@ -78,6 +66,7 @@ class RecipientreportController extends ActionController
     {
         $searchstring = '';
         $searchamount = 0;
+        $status = '';
         $piVars = [];
 
 
@@ -91,30 +80,36 @@ class RecipientreportController extends ActionController
                 $searchamount = intval($filter['searchamount']);
                 $piVars['filter']['searchamount'] = $searchamount;
             }
+            if (in_array($filter['status'] ?? '', ['open', 'removed'], true)) {
+                $status = $filter['status'];
+                $piVars['filter']['status'] = $status;
+            }
 
         }
         //$arguments = $this->request->getArguments();
         //\TYPO3\CMS\Core\Utility\DebugUtility::debug($arguments, 'arguments');
 
         // read bounce mail report
-        $currentPid = (int)GeneralUtility::_GP('id');
+        $currentPid = (int)($this->request->getParsedBody()['id'] ?? $this->request->getQueryParams()['id'] ?? null);
         if ($currentPid === 0) {
             return new ForwardResponse('choosePage');
         }
         $rootline = GeneralUtility::makeInstance(RootlineUtility::class, $currentPid)->get();
-        $recipientreports = $this->recipientreportRepository->findByRootline($rootline, $searchstring, $searchamount);
-    //\TYPO3\CMS\Core\Utility\DebugUtility::debug($recipientreports, 'recipientreports');
-        if (! count($recipientreports)) {
+        $recipientreports = $this->recipientreportRepository->findByRootline($rootline, $searchstring, $searchamount, $status);
+        $filterActive = $searchstring !== '' || $searchamount > 0 || $status !== '';
+        // without a filter there are no reports on this page, with a filter just none that match
+        if (! count($recipientreports) && ! $filterActive) {
             return new ForwardResponse('choosePage');
         }
 
-
-
-        $this->view->assignMultiple([
-            'recipientreports' => $recipientreports,
-            'piVars' => $piVars
+        $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
+        $moduleTemplate->assignMultiple($this->reportPresenter->presentRecipientreports($recipientreports));
+        $moduleTemplate->assignMultiple([
+            'piVars' => $piVars,
+            'filterActive' => $filterActive,
+            'activeTab' => 'recipients',
         ]);
-        return $this->htmlResponse();
+        return $moduleTemplate->renderResponse('Recipientlist');
     }
 
     /**
@@ -122,7 +117,6 @@ class RecipientreportController extends ActionController
      * @return ResponseInterface
      * @throws IllegalObjectTypeException
      * @throws StopActionException
-     * @throws DBALException
      */
     public function deleteAction(Recipientreport $recipientreport): ResponseInterface
     {
@@ -133,7 +127,9 @@ class RecipientreportController extends ActionController
 
     public function choosePageAction(): ResponseInterface
     {
-        return $this->htmlResponse();
+        $moduleTemplate = $this->moduleTemplateFactory->create($this->request);
+        $moduleTemplate->assign('activeTab', 'recipients');
+        return $moduleTemplate->renderResponse('ChoosePage');
     }
 
 

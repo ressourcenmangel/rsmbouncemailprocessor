@@ -58,14 +58,14 @@ class Mailserver
      *
      * @var string|null
      */
-    protected string|null $username;
+    protected string|null $username = null;
 
     /**
      * This is the password used to connect to the server.
      *
      * @var string|null
      */
-    protected string|null $password;
+    protected string|null $password = null;
 
     /**
      * This is an array of flags that modify how the class connects to the server. Examples include "ssl" to enforce a
@@ -245,7 +245,7 @@ class Mailserver
     public function setOptions(int $bitmask = 0): void
     {
         if (!is_numeric($bitmask)) {
-            throw new RuntimeException('Function requires numeric argument.');
+            throw new RuntimeException('Function requires numeric argument.', 1416736437);
         }
 
         $this->options = $bitmask;
@@ -306,7 +306,7 @@ class Mailserver
             $mailboxPath .= ':' . $this->port;
         }
 
-        if ($this->service != 'imap') {
+        if ($this->service !== 'imap') {
             $mailboxPath .= '/' . $this->service;
         }
 
@@ -327,14 +327,14 @@ class Mailserver
     {
         if (!empty($this->imapStream)) {
             if (!imap_reopen($this->imapStream, $this->getServerString(), $this->options, 1)) {
-                throw new RuntimeException(imap_last_error());
+                throw new RuntimeException(imap_last_error(), 2549642140);
             }
         } else {
             $imapStream = @imap_open($this->getServerString(), $this->username, $this->password, $this->options, 1,
                 $this->params);
 
             if ($imapStream === false) {
-                throw new RuntimeException(imap_last_error());
+                throw new RuntimeException(imap_last_error(), 9920129279);
             }
 
             $this->imapStream = $imapStream;

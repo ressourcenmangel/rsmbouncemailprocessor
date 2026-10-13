@@ -1,0 +1,123 @@
+<html
+	data-namespace-typo3-fluid="true"
+	xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+	xmlns:core="http://typo3.org/ns/TYPO3/CMS/Core/ViewHelpers"
+	lang="en">
+
+<f:layout name="Backend"/>
+
+<f:section name="content">
+	<f:render arguments="{_all}" section="Recipientreports"/>
+</f:section>
+
+<f:section name="Reason">
+	<span class="badge text-bg-{reason.severity} rsm-reason"
+		title="{f:translate(key: 'module.bouncereports.list.tableheader.{reason.countKey}', extensionName: 'Rsmbouncemailprocessor')}: {reason.count} ({reason.percent -> f:format.number(decimals: 0)} %)">
+		<f:translate key="module.bouncereports.list.tableheader.{reason.countKey}" extensionName="Rsmbouncemailprocessor">{reason.name}</f:translate>
+		<span class="rsm-reason-count">{reason.count}</span>
+	</span>
+</f:section>
+
+<f:section name="Recipientreports">
+
+	<f:variable name="confirmTitle"><f:translate key="module.delete.confirm.title" extensionName="Rsmbouncemailprocessor">Delete report</f:translate></f:variable>
+	<f:variable name="confirmText"><f:translate key="module.delete.confirm.text" extensionName="Rsmbouncemailprocessor">Do you really want to delete this report? This cannot be undone.</f:translate></f:variable>
+	<f:variable name="confirmCancel"><f:translate key="module.delete.confirm.cancel" extensionName="Rsmbouncemailprocessor">Cancel</f:translate></f:variable>
+	<f:variable name="confirmOk"><f:translate key="module.delete.confirm.ok" extensionName="Rsmbouncemailprocessor">Delete</f:translate></f:variable>
+
+	<h1>
+		<f:translate key="module.recipientreports.list.title">Recipient Reports</f:translate>
+	</h1>
+
+	<div class="card mb-4 rsm-filter">
+		<div class="card-body">
+			<f:form action="recipientlist" name="filter" id="rsmbouncemailprocessor_recipientlist_search" class="row g-3 align-items-end">
+				<div class="col-12 col-md-4">
+					<label for="searchstring" class="form-label"><f:translate key="module.recipientreports.filter.searchstring" extensionName="Rsmbouncemailprocessor">Email contains</f:translate></label>
+					<f:form.textfield property="searchstring" value="{piVars.filter.searchstring}" id="searchstring" class="form-control" />
+				</div>
+				<div class="col-12 col-md-2">
+					<label for="searchamount" class="form-label"><f:translate key="module.recipientreports.filter.searchamount" extensionName="Rsmbouncemailprocessor">Minimum bounces</f:translate></label>
+					<f:form.textfield property="searchamount" value="{piVars.filter.searchamount}" id="searchamount" class="form-control" type="number" additionalAttributes="{min: '0'}" />
+				</div>
+				<div class="col-12 col-md-2">
+					<label for="status" class="form-label"><f:translate key="module.recipientreports.filter.status" extensionName="Rsmbouncemailprocessor">Status</f:translate></label>
+					<f:form.select property="status" value="{piVars.filter.status}" id="status" class="form-select">
+						<f:form.select.option value=""><f:translate key="module.recipientreports.filter.status.all" extensionName="Rsmbouncemailprocessor">All</f:translate></f:form.select.option>
+						<f:form.select.option value="open"><f:translate key="module.recipientreports.filter.status.open" extensionName="Rsmbouncemailprocessor">Not removed</f:translate></f:form.select.option>
+						<f:form.select.option value="removed"><f:translate key="module.recipientreports.filter.status.removed" extensionName="Rsmbouncemailprocessor">Removed</f:translate></f:form.select.option>
+					</f:form.select>
+				</div>
+				<div class="col-12 col-md-4 d-flex gap-2">
+					<f:form.submit value="{f:translate(key: 'module.recipientreports.filter.submit', extensionName: 'Rsmbouncemailprocessor')}" class="btn btn-primary" />
+					<f:if condition="{filterActive}">
+						<f:link.action action="recipientlist" class="btn btn-default">
+							<f:translate key="module.recipientreports.filter.reset" extensionName="Rsmbouncemailprocessor">Reset</f:translate>
+						</f:link.action>
+					</f:if>
+				</div>
+			</f:form>
+		</div>
+	</div>
+
+	<p class="text-body-secondary">
+		<f:translate key="module.recipientreports.list.count" extensionName="Rsmbouncemailprocessor" arguments="{0: summary.recipients}">%s recipients</f:translate>
+	</p>
+
+	<f:if condition="{rows}">
+	<f:else>
+		<f:be.infobox state="-1">
+			<f:translate key="module.recipientreports.list.nomatch" extensionName="Rsmbouncemailprocessor">No recipient reports match the filter.</f:translate>
+		</f:be.infobox>
+	</f:else>
+	<f:then>
+	<div class="table-fit">
+		<table class="table table-hover align-middle rsm-table">
+			<thead>
+				<tr>
+					<th><f:translate key="module.recipientreports.list.tableheader.email">email</f:translate></th>
+					<th class="text-end"><f:translate key="module.recipientreports.list.tableheader.summe">sum</f:translate></th>
+					<th><f:translate key="module.bouncereports.list.tableheader.reasons" extensionName="Rsmbouncemailprocessor">Reasons</f:translate></th>
+					<th class="text-end"><f:translate key="module.recipientreports.list.tableheader.action">Action</f:translate></th>
+				</tr>
+			</thead>
+			<tbody>
+				<f:for each="{rows}" as="row">
+					<tr>
+						<td>
+							<strong>{row.report.email}</strong>
+							<f:if condition="{row.report.removed}">
+								<f:variable name="removedDate"><f:format.date format="d.m.Y H:i">{row.report.removed}</f:format.date></f:variable>
+								<span class="badge text-bg-success ms-1" title="{f:translate(key: 'module.recipientreports.list.removed.title', extensionName: 'Rsmbouncemailprocessor')}">
+									<f:translate key="module.recipientreports.list.removed" extensionName="Rsmbouncemailprocessor" arguments="{0: removedDate}">removed on %s</f:translate>
+								</span>
+							</f:if>
+							<div class="text-body-secondary small">uid {row.report.uid}</div>
+						</td>
+						<td class="text-end"><span class="badge text-bg-secondary">{row.total}</span></td>
+						<td>
+							<div class="rsm-reasons">
+								<f:for each="{row.reasons}" as="reason">
+									<f:render section="Reason" arguments="{reason: reason}" />
+								</f:for>
+							</div>
+						</td>
+						<td class="text-end">
+							<f:link.action
+								action="delete"
+								arguments="{recipientreport: row.report}"
+								class="btn btn-default btn-sm t3js-modal-trigger"
+								data="{severity: 'warning', title: confirmTitle, bs-content: confirmText, button-close-text: confirmCancel, button-ok-text: confirmOk}"
+								title="{f:translate(key: 'module.recipientreports.list.delete', extensionName: 'Rsmbouncemailprocessor')}">
+								<core:icon identifier="actions-edit-delete" size="small" />
+							</f:link.action>
+						</td>
+					</tr>
+				</f:for>
+			</tbody>
+		</table>
+	</div>
+	</f:then>
+	</f:if>
+</f:section>
+</html>

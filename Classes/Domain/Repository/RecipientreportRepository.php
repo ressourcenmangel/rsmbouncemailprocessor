@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace RSM\Rsmbouncemailprocessor\Domain\Repository;
 
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Persistence\Generic\Typo3QuerySettings;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 use TYPO3\CMS\Extbase\Persistence\Repository;
 
 class RecipientreportRepository extends Repository
 {
-    public function initializeObject() {
-        $objectManager = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\Extbase\\Object\\ObjectManager');
-        $querySettings = $objectManager->get('TYPO3\\CMS\\Extbase\\Persistence\\Generic\\Typo3QuerySettings');
+    public function initializeObject(): void {
+        $querySettings = GeneralUtility::makeInstance(Typo3QuerySettings::class);
         $querySettings->setRespectStoragePage(FALSE);
         $this->setDefaultQuerySettings($querySettings);
     }
@@ -21,7 +22,7 @@ class RecipientreportRepository extends Repository
     /**
      * @return array|object[]|QueryResultInterface
      */
-    public function findByRootline(array $rootline, string $searchstring = '', int $searchamount = 0)
+    public function findByRootline(array $rootline, string $searchstring = '', int $searchamount = 0, string $status = '')
     {
         $storagePageIds = [];
         foreach ($rootline as $key => $value) {
@@ -38,6 +39,7 @@ class RecipientreportRepository extends Repository
             $constraints[] = $query->like('email', "%$searchstring%");
         }
         if($searchamount) {
+            $orconstraints = [];
             $orconstraints[] = $query->greaterThanOrEqual('countunknownreason', $searchamount);
             $orconstraints[] = $query->greaterThanOrEqual('countnosenderfound', $searchamount);
             $orconstraints[] = $query->greaterThanOrEqual('countuserunknown', $searchamount);
@@ -48,12 +50,17 @@ class RecipientreportRepository extends Repository
             $orconstraints[] = $query->greaterThanOrEqual('countfilterlist', $searchamount);
             $orconstraints[] = $query->greaterThanOrEqual('countmessagesize', $searchamount);
             $orconstraints[] = $query->greaterThanOrEqual('countpossiblespam', $searchamount);
-            $constraints[] =$query->logicalOr($orconstraints);
+            $constraints[] =$query->logicalOr(...$orconstraints);
+        }
+        if ($status === 'removed') {
+            $constraints[] = $query->greaterThan('removed', 0);
+        } elseif ($status === 'open') {
+            $constraints[] = $query->equals('removed', 0);
         }
 
         if(count($constraints)){
             $query->matching(
-                $query->logicalAnd($constraints),
+                $query->logicalAnd(...$constraints),
             );
         }
 

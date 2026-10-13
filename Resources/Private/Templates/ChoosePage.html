@@ -1,0 +1,19 @@
+<html
+	data-namespace-typo3-fluid="true"
+	xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers"
+	lang="en">
+
+<f:layout name="Backend"/>
+
+<f:section name="content">
+	<f:render arguments="{_all}" section="ChoosePage"/>
+</f:section>
+
+<f:section name="ChoosePage">
+	<div class="rsm-bounce-empty">
+		<f:be.infobox state="1" title="{f:translate(key: 'message.choosePage', extensionName: 'Rsmbouncemailprocessor')}">
+			<f:translate key="message.choosePage.hint" extensionName="Rsmbouncemailprocessor">Reports are created by the scheduler task "RSM analyze bounce mail" and are stored on the page of the newsletter. Select that page, or a page above it, in the page tree.</f:translate>
+		</f:be.infobox>
+	</div>
+</f:section>
+</html>

@@ -27,10 +27,10 @@ final class MIME
 
         foreach (imap_mime_header_decode($text) as $word) {
             $ch = 'default' === $word->charset ? 'ascii' : $word->charset;
-            if ($ch==="ascii" && ($c=strtoupper(mb_detect_encoding($word->text)))!==strtoupper($ch)) {
+            if ($ch==="ascii" && ($c=strtoupper(mb_detect_encoding((string) $word->text)))!==strtoupper($ch)) {
                 $ch=$c;
             }
-            $result .= @iconv($ch, $targetCharset, $word->text);
+            $result .= @iconv((string) $ch, $targetCharset, (string) $word->text);
         }
 
         return $result;

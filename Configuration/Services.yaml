@@ -6,3 +6,11 @@ services:
 
   RSM\Rsmbouncemailprocessor\:
     resource: '../Classes/*'
+
+  # Scheduler tasks are fetched from the container by TYPO3 14 and need to be public
+  RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail:
+    public: true
+  RSM\Rsmbouncemailprocessor\Task\ProcessBounceMail:
+    public: true
+  RSM\Rsmbouncemailprocessor\Task\CleanTaskQueue:
+    public: true

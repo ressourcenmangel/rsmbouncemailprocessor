@@ -42,13 +42,19 @@
 				<source>Number of bounce mail to be processed</source>
 			</trans-unit>
 			<trans-unit id="scheduler.rsmbouncemailcsh.maxProcessed" resname="scheduler.rsmbouncemailcsh.maxProcessed">
-				<source>aximum number of bounce mail to be processed on one scheduler cycle</source>
+				<source>Maximum number of bounce mail to be processed on one scheduler cycle</source>
 			</trans-unit>
 			<trans-unit id="scheduler.rsmbouncemail.deletealways" resname="scheduler.rsmbouncemail.deletealways">
-				<source>Delete every mail</source>
+				<source>Also delete unanalysable mails (analysed mails are always deleted)</source>
 			</trans-unit>
 			<trans-unit id="scheduler.rsmbouncemailcsh.deletealways" resname="scheduler.rsmbouncemailcsh.deletealways">
-				<source>Delete every mail after processing, not only those that could be analysed</source>
+				<source>Mails that could be analysed are always deleted. If set, mails that could not be analysed are deleted as well instead of being marked as read.</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.dataVerification" resname="scheduler.rsmbouncemail.dataVerification">
+				<source>Could not connect to the mail server with the given data. Please check server, port, user, password and service.</source>
+			</trans-unit>
+			<trans-unit id="scheduler.rsmbouncemail.phpImapError" resname="scheduler.rsmbouncemail.phpImapError">
+				<source>The PHP extension "imap" is not installed, the bounce mailbox cannot be read.</source>
 			</trans-unit>
 		</body>
 	</file>

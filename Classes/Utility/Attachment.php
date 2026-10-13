@@ -16,13 +16,6 @@ class Attachment
 {
 
     /**
-     * This is the structure object for the piece of the message body that the attachment is located it.
-     *
-     * @var stdClass
-     */
-    protected stdClass $structure;
-
-    /**
      * This is the unique identifier for the message this attachment belongs to.
      *
      * @var int
@@ -89,17 +82,19 @@ class Attachment
      * @param stdClass $structure
      * @param null|string $partIdentifier
      */
-    public function __construct(Mailmessage $message, stdClass $structure, null|string $partIdentifier = null)
+    public function __construct(Mailmessage $message, /**
+     * This is the structure object for the piece of the message body that the attachment is located it.
+     */
+    protected stdClass $structure, null|string $partIdentifier = null)
     {
         $this->messageId = $message->getUid();
         $this->imapStream = $message->getImapBox()->getImapStream();
-        $this->structure = $structure;
 
         if (isset($partIdentifier)) {
             $this->partId = $partIdentifier;
         }
 
-        $parameters = Mailmessage::getParametersFromStructure($structure);
+        $parameters = Mailmessage::getParametersFromStructure($this->structure);
 
         if (isset($parameters['filename'])) {
             $this->setFileName($parameters['filename']);
@@ -107,17 +102,17 @@ class Attachment
             $this->setFileName($parameters['name']);
         }
 
-        if (isset($structure->bytes)) {
-            $this->size = $structure->bytes;
+        if (isset($this->structure->bytes)) {
+            $this->size = $this->structure->bytes;
         }
 
-        $this->mimeType = Mailmessage::typeIdToString($structure->type);
+        $this->mimeType = Mailmessage::typeIdToString($this->structure->type);
 
-        if (isset($structure->subtype)) {
-            $this->mimeType .= '/' . strtolower($structure->subtype);
+        if (isset($this->structure->subtype)) {
+            $this->mimeType .= '/' . strtolower($this->structure->subtype);
         }
 
-        $this->encoding = $structure->encoding;
+        $this->encoding = $this->structure->encoding;
     }
 
     /**
@@ -146,7 +141,7 @@ class Attachment
      */
     public function getFileName(): string
     {
-        return (isset($this->filename)) ? $this->filename : false;
+        return $this->filename ?? false;
     }
 
     /**
