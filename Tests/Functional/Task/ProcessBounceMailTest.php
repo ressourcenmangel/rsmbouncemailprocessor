@@ -16,6 +16,7 @@ use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
+use Undkonsorten\CuteMailing\Domain\Model\LineSeparatedRecipientList;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 use Undkonsorten\CuteMailing\Domain\Model\RecipientList;
 use Undkonsorten\CuteMailing\Domain\Model\SendOut;
@@ -233,6 +234,51 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertSame(['other@example.test'], $this->recipientList->getEmails());
     }
 
+    /**
+     * cute_mailing's LineSeparatedRecipientList cannot remove recipients. The report is marked as
+     * processed anyway, otherwise candidates pile up and trigger the circuit breaker later. One
+     * warning per report, no delete log (nobody was removed).
+     */
+    #[Test]
+    public function reportOfAListWithoutRemovalSupportIsMarkedAsProcessedWithOneWarning(): void
+    {
+        $this->bounce('550', 2);
+        $list = $this->lineSeparatedList();
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('not removable'),
+            self::callback(function (array $context): bool {
+                return $context['recipientreport'] === (int)$this->report()['uid']
+                    && !str_contains(json_encode($context), '@');
+            })
+        );
+
+        $this->process(true, $list, $logger);
+
+        self::assertGreaterThan(0, (int)$this->report()['removed']);
+        self::assertCount(0, $this->rows(self::DELETELOG_TABLE));
+
+        // not processed (and not warned about) again
+        $this->process(true, $list, $logger);
+    }
+
+    /**
+     * Candidates that cannot be removed at all are no reason to trip the circuit breaker.
+     */
+    #[Test]
+    public function candidatesWithoutRemovalSupportDoNotCountForTheCircuitBreaker(): void
+    {
+        $this->bounce('550', 2);
+        $this->bounce('550', 2, 'other@example.test');
+
+        $this->process(false, $this->lineSeparatedList(), null, 1);
+
+        foreach ($this->rows(self::RECIPIENT_TABLE) as $report) {
+            self::assertGreaterThan(0, (int)$report['removed']);
+        }
+    }
+
     // ------------------------------------------------------------------ circuit breaker
 
     /**
@@ -426,6 +472,13 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
 
         self::assertTrue($task->execute());
+    }
+
+    private function lineSeparatedList(): LineSeparatedRecipientList
+    {
+        $list = new LineSeparatedRecipientList();
+        (new \ReflectionProperty(LineSeparatedRecipientList::class, 'lineSeparatedList'))->setValue($list, self::EMAIL);
+        return $list;
     }
 
     private function insertReports(int $count, string $prefix, int $removed, int $countUserUnknown): void

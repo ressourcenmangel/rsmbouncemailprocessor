@@ -19,6 +19,7 @@ use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
+use Undkonsorten\CuteMailing\Domain\Model\LineSeparatedRecipientList;
 use Undkonsorten\CuteMailing\Domain\Repository\NewsletterRepository;
 
 
@@ -105,7 +106,10 @@ class ProcessBounceMail extends AbstractTask
                 }
             }
         }
-//\TYPO3\CMS\Core\Utility\DebugUtility::debug($recipientLists, '$recipientLists');
+
+        // cute_mailing's LineSeparatedRecipientList cannot remove recipients ("Not implemented")
+        $removableLists = array_filter($recipientLists, static fn($list): bool => !$list instanceof LineSeparatedRecipientList);
+        $notRemovable = $recipientLists !== [] && $removableLists === [];
 
         // Walk through the recipientreport and get those rcords that reached their limits
         $connection = $this->connectionPool()->getConnectionForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
@@ -114,7 +118,8 @@ class ProcessBounceMail extends AbstractTask
         // limits at once. The candidates of this run plus the recipients removed in the last 24 hours
         // must not exceed the maximum, otherwise nobody is removed. The error is shown in the scheduler module.
         $maxRemovalsPer24h = (int)($this->conf['settings.']['maxRemovalsPer24h'] ?? 0);
-        if ($maxRemovalsPer24h > 0) {
+        // (candidates that cannot be removed anyway are not counted)
+        if ($maxRemovalsPer24h > 0 && !$notRemovable) {
             $candidates = $this->countRemovalCandidates();
             $recentlyRemoved = $this->countRecentlyRemoved();
             if ($candidates + $recentlyRemoved > $maxRemovalsPer24h) {
@@ -155,12 +160,26 @@ class ProcessBounceMail extends AbstractTask
                     // Alle Records durchlaufen
                     while ($row = $resultReadRecipientreport->fetchAssociative()) {
 
+                        // no list can remove recipients: mark the report as processed, otherwise
+                        // such candidates pile up and trip the circuit breaker later
+                        if ($notRemovable) {
+                            $this->logger?->warning('Recipient not removable: no recipient list supports removing recipients, report marked as removed', [
+                                'recipientreport' => (int)$row['uid'],
+                            ]);
+                            $connection->update(
+                                'tx_rsmbouncemailprocessor_domain_model_recipientreport',
+                                ['removed' => time(), 'tstamp' => time()],
+                                ['uid' => (int)$row['uid']]
+                            );
+                            continue;
+                        }
+
                         // the email
                         $logvalue = $row[$key];
 
                         // remove the recipient from all recipient lists we've found
                         $removed = false;
-                        foreach ($recipientLists as $recipientList) {
+                        foreach ($removableLists as $recipientList) {
                             if ($recipientList && $row['email']) {
 
                                 // remove the recipient, the count tells whether the address was in this list
