@@ -32,6 +32,20 @@ class ProcessBounceMail extends AbstractTask
 {
     use LazyServicesTrait;
 
+    /** columns of the recipient report that count bounces, the only valid keys of settings.deletelimits */
+    private const COUNTER_COLUMNS = [
+        'countunknownreason',
+        'countnosenderfound',
+        'countuserunknown',
+        'countquotaexceeded',
+        'countconnectionrefused',
+        'countheadererror',
+        'countoutofoffice',
+        'countfilterlist',
+        'countmessagesize',
+        'countpossiblespam',
+    ];
+
 
     public $conf;
     /**
@@ -117,10 +131,11 @@ class ProcessBounceMail extends AbstractTask
         // Circuit breaker: a blacklisting or a misconfiguration can push many recipients over their
         // limits at once. The candidates of this run plus the recipients removed in the last 24 hours
         // must not exceed the maximum, otherwise nobody is removed. The error is shown in the scheduler module.
+        $deleteLimits = $this->getDeleteLimits();
         $maxRemovalsPer24h = (int)($this->conf['settings.']['maxRemovalsPer24h'] ?? 0);
         // (candidates that cannot be removed anyway are not counted)
         if ($maxRemovalsPer24h > 0 && !$notRemovable) {
-            $candidates = $this->countRemovalCandidates();
+            $candidates = $this->countRemovalCandidates($deleteLimits);
             $recentlyRemoved = $this->countRecentlyRemoved();
             if ($candidates + $recentlyRemoved > $maxRemovalsPer24h) {
                 $message = sprintf(
@@ -138,103 +153,95 @@ class ProcessBounceMail extends AbstractTask
         }
 
         // Walk through all the delete limits
-        if (isset($this->conf['settings.']['deletelimits.'])) {
-            foreach ($this->conf['settings.']['deletelimits.'] as $key => $limit) {
+        foreach ($deleteLimits as $key => $limit) {
+            // query the affected records
+            $queryBuilderReadRecipientreport = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
+            $resultReadRecipientreport = $queryBuilderReadRecipientreport
+                ->select('*')
+                ->from('tx_rsmbouncemailprocessor_domain_model_recipientreport')
+                ->where(
+                    $queryBuilderReadRecipientreport->expr()->gte($key,
+                        $queryBuilderReadRecipientreport->createNamedParameter($limit, Connection::PARAM_INT)),
+                    // already removed, nothing to do until the address bounces again
+                    $queryBuilderReadRecipientreport->expr()->eq('removed', 0),
+                )
+                ->executeQuery();
 
-                // checkt if valid
-                if ($key !== '' && $limit > 0) {
+            // Alle Records durchlaufen
+            while ($row = $resultReadRecipientreport->fetchAssociative()) {
 
-                    // query the affected records
-                    $queryBuilderReadRecipientreport = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
-                    $resultReadRecipientreport = $queryBuilderReadRecipientreport
-                        ->select('*')
-                        ->from('tx_rsmbouncemailprocessor_domain_model_recipientreport')
-                        ->where(
-                            $queryBuilderReadRecipientreport->expr()->gte($key,
-                                $queryBuilderReadRecipientreport->createNamedParameter($limit, Connection::PARAM_INT)),
-                            // already removed, nothing to do until the address bounces again
-                            $queryBuilderReadRecipientreport->expr()->eq('removed', 0),
-                        )
-                        ->executeQuery();
+                // no list can remove recipients: mark the report as processed, otherwise
+                // such candidates pile up and trip the circuit breaker later
+                if ($notRemovable) {
+                    $this->logger?->warning('Recipient not removable: no recipient list supports removing recipients, report marked as removed', [
+                        'recipientreport' => (int)$row['uid'],
+                    ]);
+                    $connection->update(
+                        'tx_rsmbouncemailprocessor_domain_model_recipientreport',
+                        ['removed' => time(), 'tstamp' => time()],
+                        ['uid' => (int)$row['uid']]
+                    );
+                    continue;
+                }
 
-                    // Alle Records durchlaufen
-                    while ($row = $resultReadRecipientreport->fetchAssociative()) {
+                // the email
+                $logvalue = $row[$key];
 
-                        // no list can remove recipients: mark the report as processed, otherwise
-                        // such candidates pile up and trip the circuit breaker later
-                        if ($notRemovable) {
-                            $this->logger?->warning('Recipient not removable: no recipient list supports removing recipients, report marked as removed', [
+                // remove the recipient from all recipient lists we've found
+                $removed = false;
+                foreach ($removableLists as $recipientList) {
+                    if ($recipientList && $row['email']) {
+
+                        // remove the recipient, the count tells whether the address was in this list
+                        try {
+                            $countBefore = $recipientList->getRecipientsCount();
+                            $recipientList->removeRecipientByEmail($row['email']);
+                            $this->persistenceManager()->persistAll();
+                            $removed = true;
+                            $removedFromList = $recipientList->getRecipientsCount() < $countBefore;
+                        } catch (\Exception $exception) {
+                            $removedFromList = false;
+                            $this->logger?->warning('Recipient could not be removed from the recipient list', [
                                 'recipientreport' => (int)$row['uid'],
+                                'type' => $recipientList::class,
+                                'exception' => $exception::class,
+                                'code' => $exception->getCode(),
                             ]);
-                            $connection->update(
-                                'tx_rsmbouncemailprocessor_domain_model_recipientreport',
-                                ['removed' => time(), 'tstamp' => time()],
-                                ['uid' => (int)$row['uid']]
-                            );
-                            continue;
                         }
 
-                        // the email
-                        $logvalue = $row[$key];
-
-                        // remove the recipient from all recipient lists we've found
-                        $removed = false;
-                        foreach ($removableLists as $recipientList) {
-                            if ($recipientList && $row['email']) {
-
-                                // remove the recipient, the count tells whether the address was in this list
-                                try {
-                                    $countBefore = $recipientList->getRecipientsCount();
-                                    $recipientList->removeRecipientByEmail($row['email']);
-                                    $this->persistenceManager()->persistAll();
-                                    $removed = true;
-                                    $removedFromList = $recipientList->getRecipientsCount() < $countBefore;
-                                } catch (\Exception $exception) {
-                                    $removedFromList = false;
-                                    $this->logger?->warning('Recipient could not be removed from the recipient list', [
-                                        'recipientreport' => (int)$row['uid'],
-                                        'type' => $recipientList::class,
-                                        'exception' => $exception::class,
-                                        'code' => $exception->getCode(),
-                                    ]);
-                                }
-
-                                // one delete log entry per list the address has been removed from
-                                if ($removedFromList && (int)($this->conf['settings.']['deletelog.']['enabled'] ?? 0) === 1) {
-                                    $deletelogPid = (int)($this->conf['settings.']['deletelog.']['pid'] ?? 0);
-                                    if ($deletelogPid > 0) {
-                                        $queryBuilderAddLog = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
-                                        $queryBuilderAddLog
-                                            ->insert('tx_rsmbouncemailprocessor_domain_model_deletelog')
-                                            ->values([
-                                                'pid' => $deletelogPid,
-                                                'email' => $row['email'],
-                                                'origpid' => (int)($recipientList->getRecipientListPage() ?? 0),
-                                                'tstamp' => time(),
-                                                'crdate' => time(),
-                                                'deletetime' => time(),
-                                                'reasontext' => $key,
-                                                'reasonvalue' => $logvalue
-                                            ])
-                                            ->executeStatement();
-                                    }
-                                }
+                        // one delete log entry per list the address has been removed from
+                        if ($removedFromList && (int)($this->conf['settings.']['deletelog.']['enabled'] ?? 0) === 1) {
+                            $deletelogPid = (int)($this->conf['settings.']['deletelog.']['pid'] ?? 0);
+                            if ($deletelogPid > 0) {
+                                $queryBuilderAddLog = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_deletelog');
+                                $queryBuilderAddLog
+                                    ->insert('tx_rsmbouncemailprocessor_domain_model_deletelog')
+                                    ->values([
+                                        'pid' => $deletelogPid,
+                                        'email' => $row['email'],
+                                        'origpid' => (int)($recipientList->getRecipientListPage() ?? 0),
+                                        'tstamp' => time(),
+                                        'crdate' => time(),
+                                        'deletetime' => time(),
+                                        'reasontext' => $key,
+                                        'reasonvalue' => $logvalue
+                                    ])
+                                    ->executeStatement();
                             }
                         }
-
-                        // Make persistent
-                        $this->persistenceManager()->persistAll();
-
-                        // mark the report, so it is shown as removed and not processed again
-                        if ($removed) {
-                            $connection->update(
-                                'tx_rsmbouncemailprocessor_domain_model_recipientreport',
-                                ['removed' => time(), 'tstamp' => time()],
-                                ['uid' => (int)$row['uid']]
-                            );
-                        }
-
                     }
+                }
+
+                // Make persistent
+                $this->persistenceManager()->persistAll();
+
+                // mark the report, so it is shown as removed and not processed again
+                if ($removed) {
+                    $connection->update(
+                        'tx_rsmbouncemailprocessor_domain_model_recipientreport',
+                        ['removed' => time(), 'tstamp' => time()],
+                        ['uid' => (int)$row['uid']]
+                    );
                 }
 
             }
@@ -261,13 +268,10 @@ class ProcessBounceMail extends AbstractTask
     /**
      * number of distinct recipients that reached any delete limit and are not removed yet
      */
-    private function countRemovalCandidates(): int
+    private function countRemovalCandidates(array $deleteLimits): int
     {
         $emails = [];
-        foreach ($this->conf['settings.']['deletelimits.'] ?? [] as $key => $limit) {
-            if ($key === '' || $limit <= 0) {
-                continue;
-            }
+        foreach ($deleteLimits as $key => $limit) {
             $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
             $result = $queryBuilder
                 ->select('email')
@@ -277,11 +281,36 @@ class ProcessBounceMail extends AbstractTask
                     $queryBuilder->expr()->eq('removed', 0),
                 )
                 ->executeQuery();
-            while ($email = $result->fetchOne()) {
-                $emails[strtolower((string)$email)] = true;
+            foreach ($result->fetchFirstColumn() as $email) {
+                // reports without an address cannot be removed
+                if ((string)$email !== '') {
+                    $emails[strtolower((string)$email)] = true;
+                }
             }
         }
         return count($emails);
+    }
+
+    /**
+     * The delete limits from settings.deletelimits as counter column => limit (int > 0).
+     * The keys are column names, so only the known counter columns are accepted, unknown keys are
+     * ignored with a warning.
+     *
+     * @return array<string, int>
+     */
+    private function getDeleteLimits(): array
+    {
+        $deleteLimits = [];
+        foreach ($this->conf['settings.']['deletelimits.'] ?? [] as $key => $limit) {
+            if (!in_array($key, self::COUNTER_COLUMNS, true)) {
+                $this->logger?->warning('Unknown key in settings.deletelimits ignored', ['key' => $key]);
+                continue;
+            }
+            if (is_scalar($limit) && (int)$limit > 0) {
+                $deleteLimits[$key] = (int)$limit;
+            }
+        }
+        return $deleteLimits;
     }
 
     /**

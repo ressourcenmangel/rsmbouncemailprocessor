@@ -349,6 +349,44 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertSame(0, $this->countRows('removed = 0'), 'all candidates are removed');
     }
 
+    /**
+     * The count stopped at the first empty address ("while ($email = fetchOne())"), so the
+     * circuit breaker counted too few candidates.
+     */
+    #[Test]
+    public function emptyAddressDoesNotStopCountingTheCandidates(): void
+    {
+        $this->insertReports(1, '', 0, 2);
+        $this->insertReports(2, 'candidate', 0, 2);
+        $connection = $this->get(ConnectionPool::class)->getConnectionForTable(self::RECIPIENT_TABLE);
+        $connection->update(self::RECIPIENT_TABLE, ['email' => ''], ['email' => '0@example.test']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('2 recipients');
+        $this->process(false, null, null, 1);
+    }
+
+    /**
+     * The keys of settings.deletelimits are column names, only the counter columns are allowed.
+     */
+    #[Test]
+    public function unknownKeyOfTheDeleteLimitsIsIgnoredWithAWarning(): void
+    {
+        // the counter is below its limit, the column "uid" must not be used as a limit
+        $this->bounce('550', 1);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('deletelimits'),
+            self::callback(static fn(array $context): bool => $context['key'] === 'uid')
+        );
+
+        $this->process(false, null, $logger, null, ['uid' => '1', 'countuserunknown' => '2', 'countoutofoffice' => 'abc']);
+
+        self::assertSame(0, (int)$this->report()['removed']);
+        self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
+    }
+
     public static function removalsWithinTheMaximumDataProvider(): array
     {
         return [
@@ -442,7 +480,7 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
     }
 
-    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null, ?int $maxRemovalsPer24h = null): void
+    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null, ?int $maxRemovalsPer24h = null, ?array $deletelimits = null): void
     {
         // ProcessBounceMail fetches the (singleton) newsletter repository with makeInstance() in initClass()
         $newsletter = $this->createStub(Newsletter::class);
@@ -451,8 +489,8 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         $repository->method('findByUid')->willReturn($newsletter);
         GeneralUtility::setSingletonInstance(NewsletterRepository::class, $repository);
 
-        $task = new class ($deleteLog, $maxRemovalsPer24h) extends ProcessBounceMail {
-            public function __construct(private readonly bool $deleteLog, private readonly ?int $maxRemovalsPer24h)
+        $task = new class ($deleteLog, $maxRemovalsPer24h, $deletelimits) extends ProcessBounceMail {
+            public function __construct(private readonly bool $deleteLog, private readonly ?int $maxRemovalsPer24h, private readonly ?array $deletelimits)
             {
                 parent::__construct();
             }
@@ -461,6 +499,9 @@ final class ProcessBounceMailTest extends FunctionalTestCase
             {
                 parent::initClass();
                 $this->conf['settings.']['deletelog.'] = ['enabled' => $this->deleteLog ? '1' : '0', 'pid' => '94'];
+                if ($this->deletelimits !== null) {
+                    $this->conf['settings.']['deletelimits.'] = $this->deletelimits;
+                }
                 if ($this->maxRemovalsPer24h !== null) {
                     $this->conf['settings.']['maxRemovalsPer24h'] = (string)$this->maxRemovalsPer24h;
                 }

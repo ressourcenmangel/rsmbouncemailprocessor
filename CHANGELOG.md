@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Analyze task: the text of multipart mails was multiplied with each part when reading the mail (existing since 2.2.1)
 - List-Unsubscribe: rejected or failed unsubscribe mails are never deleted (not even with "delete always"), a recipient that cannot be removed is logged as warning without address
 - Processing task: recipient lists that cannot remove recipients (for example the cute_mailing line separated list) no longer let reports pile up, they are marked as removed with one warning per report and are not counted by the circuit breaker
+- Processing task: only the counter columns are accepted as keys of `settings.deletelimits` (other keys are ignored with a warning), limits are read as integers
 
 ### Security
 
