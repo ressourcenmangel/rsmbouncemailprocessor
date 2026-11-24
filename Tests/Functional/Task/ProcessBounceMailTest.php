@@ -11,6 +11,7 @@ use Psr\Log\LoggerInterface;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
 use RSM\Rsmbouncemailprocessor\Task\ProcessBounceMail;
 use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
+use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -423,6 +424,42 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         $this->expectExceptionMessage('root page');
 
         (new ProcessBounceMail())->execute();
+    }
+
+    /**
+     * The scheduler has no request and no page id. TYPO3 14 then loads only the global TypoScript,
+     * so settings of the root page (here the delete log) were ignored and no entry was written.
+     */
+    #[Test]
+    public function deleteLogIsWrittenWithSettingsFromTheRootPageTemplate(): void
+    {
+        $connectionPool = $this->get(ConnectionPool::class);
+        $connectionPool->getConnectionForTable('pages')->update('pages', ['is_siteroot' => 1], ['uid' => 1]);
+        $connectionPool->getConnectionForTable('sys_template')->insert('sys_template', [
+            'pid' => 1,
+            'root' => 1,
+            'clear' => 3,
+            'config' => "module.tx_rsmbouncemailprocessor.settings.deletelog {\n  enabled = 1\n  pid = 94\n}\n",
+        ]);
+        $this->bounce('550', 2);
+
+        $newsletter = $this->createStub(Newsletter::class);
+        $newsletter->method('getRecipientList')->willReturn($this->recipientList);
+        $repository = $this->createStub(NewsletterRepository::class);
+        $repository->method('findByUid')->willReturn($newsletter);
+        GeneralUtility::setSingletonInstance(NewsletterRepository::class, $repository);
+
+        // like the scheduler: no request, TypoScript is read from the first root page
+        unset($GLOBALS['TYPO3_REQUEST']);
+        // setUp() already read the TypoScript, TYPO3 13 caches the guessed page id in the runtime cache
+        GeneralUtility::makeInstance(CacheManager::class)->getCache('runtime')->flush();
+
+        self::assertTrue((new ProcessBounceMail())->execute());
+
+        self::assertSame(['other@example.test'], $this->recipientList->getEmails());
+        $logs = $this->rows(self::DELETELOG_TABLE);
+        self::assertCount(1, $logs);
+        self::assertSame(94, (int)$logs[0]['pid']);
     }
 
     // ------------------------------------------------------------------ helpers
