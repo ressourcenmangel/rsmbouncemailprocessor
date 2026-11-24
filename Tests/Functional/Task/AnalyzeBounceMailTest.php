@@ -131,7 +131,8 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     }
 
     /**
-     * 553 is not a reason of its own, it is not allowed to end up as "user unknown".
+     * 553 is not a reason of its own, it is not allowed to end up as "user unknown". The enhanced
+     * status 5.1.3 of the fixture decides (unknown reason), a bare 553 stays 553.
      */
     #[Test]
     public function postfix553IsNotDetectedAsUserUnknown(): void
@@ -140,8 +141,8 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
 
         $report = $this->task->analyseReturnError($this->flatten($body));
 
-        self::assertSame('553', (string)$report['reason']);
-        self::assertArrayNotHasKey($report['reason'], ERR_REASON);
+        self::assertSame('-1', (string)$report['reason']);
+        self::assertSame('553', (string)$this->task->analyseReturnError('The Postfix program <a@example.test>: host x said: 553 rejected')['reason']);
     }
 
     /**
@@ -162,6 +163,14 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'Status 5.7.x is never user unknown' => ['Status: 5.7.1 Diagnostic-Code: smtp; 550 5.7.1 Rejected by policy', '-1'],
             'Diagnostic-Code wins over a number in the original mail' => ['Status: 5.2.2 Diagnostic-Code: smtp; 551 mailbox full --- Original --- Message-ID: <550@x>', '551'],
             'Status 5.7.x in the error line' => ['said: 550 5.7.1 blocked by policy --- Original --- X: 550', '-1'],
+            'enhanced 5.2.2 wins over 550' => ['said: 550 5.2.2 mailbox full', '551'],
+            'enhanced 5.1.8 (sender rejected) is not user unknown' => ['said: 550 5.1.8 sender address rejected', '-1'],
+            'enhanced 5.4.x is not user unknown' => ['said: 550 5.4.1 recipient address rejected: access denied', '-1'],
+            'generic Status 5.0.0, the more specific 5.7.1 of the Diagnostic-Code wins' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.7.1 blocked by policy', '-1'],
+            'generic Status 5.0.0, the more specific 5.1.1 of the Diagnostic-Code wins' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.1.1 User unknown', '550'],
+            'only 553 without enhanced status' => ['said: 553 relay or sender problem', '553'],
+            'only 551 without enhanced status' => ['said: 551 mailbox full', '551'],
+            'only 550 without enhanced status is inconclusive' => ['said: 550 rejected', '-1'],
         ];
     }
 
@@ -170,6 +179,27 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     public function postfixReasonIsReadFromTheDeliveryStatus(string $text, string $expectedReason): void
     {
         $report = $this->task->analyseReturnError('The Postfix program <user@example.test>: ' . $text);
+
+        self::assertSame($expectedReason, (string)$report['reason']);
+    }
+
+    public static function deliveryStatusDataProvider(): array
+    {
+        return [
+            'enhanced 5.2.2 wins over 550' => ['Diagnostic-Code: smtp; 550 5.2.2 mailbox full', '551'],
+            'enhanced 5.1.8 is not user unknown' => ['Diagnostic-Code: smtp; 550 5.1.8 sender address rejected', '-1'],
+            'generic Status 5.0.0 and specific Diagnostic-Code 5.7.1' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.7.1 blocked', '-1'],
+            'enhanced 5.5.0 is unknown' => ['Status: 5.5.0 Diagnostic-Code: smtp; 550 whatever', '-1'],
+            'only 550 is inconclusive, the text patterns decide' => ['Diagnostic-Code: smtp; 550 rejected', '-1'],
+            'only 553' => ['Diagnostic-Code: smtp; 553 rejected', '553'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('deliveryStatusDataProvider')]
+    public function reasonIsReadFromTheDeliveryStatusOfAnyMta(string $text, string $expectedReason): void
+    {
+        $report = $this->task->analyseReturnError('Delivery failure. ' . $text);
 
         self::assertSame($expectedReason, (string)$report['reason']);
     }

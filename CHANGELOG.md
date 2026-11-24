@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Spam, filter list and connection bounces and relay errors no longer remove recipients (limits default to 0, relay errors are not "user unknown"), see README for the old behaviour
+- Bounce reasons: the enhanced status code (5.x.y) decides over the 3-digit SMTP code. Only 5.1.1, 5.1.2 and 5.1.10 are "user unknown", 5.2.2 is "mailbox full", all other enhanced codes (for example 5.1.8, 5.4.x, 5.7.x) are an unknown reason and never remove a recipient. A bare "550" without enhanced status is inconclusive and left to the reason texts
 
 ### Fixed
 

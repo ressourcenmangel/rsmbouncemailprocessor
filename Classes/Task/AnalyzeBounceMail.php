@@ -895,7 +895,10 @@ class AnalyzeBounceMail extends AbstractTask
         }
         if (preg_match('/\bDiagnostic-Code:\s*smtp;\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $dsn, $m)) {
             $code = (int)$m[1];
-            $enhanced ??= $m[2] ?? null;
+            // a generic Status (5.x.0) is refined by a more specific code of the Diagnostic-Code
+            if ($enhanced === null || preg_match('/^5\.\d+\.0$/', $enhanced)) {
+                $enhanced = $m[2] ?? $enhanced;
+            }
         }
 
         return $this->mapSmtpReason($code, $enhanced);
@@ -904,25 +907,25 @@ class AnalyzeBounceMail extends AbstractTask
     /**
      * Maps an SMTP code and an enhanced status code to a reason.
      *
-     * Enhanced status 5.7.x (policy, security, relay, spam) is never "user unknown".
-     * 553 also comes with relay or sender rejections, so it must not count as user unknown
-     * (that would remove the recipient). It is not in ERR_REASON and counts as unknown reason.
+     * If there is an enhanced status code, it decides: 5.1.1, 5.1.2 and 5.1.10 are "user unknown",
+     * 5.2.2 is "mailbox full", everything else (5.7.x policy/relay/spam, 5.1.8 sender rejected,
+     * 5.0.0, 5.4.x ...) is an unknown reason and never removes a recipient.
+     * Without an enhanced status, 553 and 551 are taken as they are (553 also comes with relay or
+     * sender rejections, it is not in ERR_REASON and counts as unknown reason). A bare 550 is
+     * inconclusive, the text patterns decide.
      *
      * @return int|null 550, 551, 553, -1 (unknown reason) or null if inconclusive
      */
     private function mapSmtpReason(?int $code, ?string $enhanced): ?int
     {
-        if ($enhanced !== null && str_starts_with($enhanced, '5.7.')) {
-            return -1;
+        if ($enhanced !== null) {
+            return match ($enhanced) {
+                '5.1.1', '5.1.2', '5.1.10' => 550,
+                '5.2.2' => 551,
+                default => -1,
+            };
         }
-        if (in_array($code, [550, 551, 553], true)) {
-            return $code;
-        }
-        return match ($enhanced) {
-            '5.1.1', '5.1.2', '5.1.10' => 550,
-            '5.2.2' => 551,
-            default => null,
-        };
+        return in_array($code, [551, 553], true) ? $code : null;
     }
 
     /**
