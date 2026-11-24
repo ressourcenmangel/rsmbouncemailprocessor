@@ -837,23 +837,7 @@ class AnalyzeBounceMail extends AbstractTask
             $cp['content'] = trim($c);
             $parts = explode('>:', $c, 2);
             $cp['reason_text'] = trim($parts[1]);
-            // 550 Invalid recipient, User unknown
-            if (stristr($cp['reason_text'], '550')) {
-                $cp['reason'] = 550;
-                // No such user
-            } elseif (stristr($cp['reason_text'], '553')) {
-                // 553 also comes with relay or sender rejections, so it must not count as user unknown
-                // (that would remove the recipient). Not in ERR_REASON, counts as unknown reason.
-                $cp['reason'] = 553;
-                // Mailbox full
-            } elseif (stristr($cp['reason_text'], '551')) {
-                $cp['reason'] = 551;
-                // Mailbox full
-            } elseif (stristr($cp['reason_text'], 'recipient storage full')) {
-                $cp['reason'] = 551;
-            } else {
-                $cp['reason'] = -1;
-            }
+            $cp['reason'] = $this->detectPostfixReason($c, $cp['reason_text']);
 //
         } elseif (strstr($c, 'Your message cannot be delivered to the following recipients:')) {
             // whoever this is...
@@ -885,6 +869,53 @@ class AnalyzeBounceMail extends AbstractTask
         }
 
         return $cp;
+    }
+
+    /**
+     * Reads the SMTP code of a Postfix bounce from the delivery status only, never from the
+     * attached original mail (a "550" in a Message-ID, date or newsletter text is no error code).
+     *
+     * 1. RFC 3464 fields "Status:" and "Diagnostic-Code: smtp;"
+     * 2. fallback: only the error line, which starts at the first ">:" and ends where the
+     *    original mail begins ("said: 550 ..."), at most 300 characters
+     *
+     * Enhanced status 5.7.x (policy, security, relay, spam) is never "user unknown".
+     *
+     * @return int 550, 551, 553 or -1 (unknown reason)
+     */
+    private function detectPostfixReason(string $content, string $reasonText): int
+    {
+        $enhanced = null;
+        $code = null;
+        if (preg_match('/\bStatus:\s*(5\.\d+\.\d+)\b/i', $content, $m)) {
+            $enhanced = $m[1];
+        }
+        if (preg_match('/\bDiagnostic-Code:\s*smtp;\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $content, $m)) {
+            $code = (int)$m[1];
+            $enhanced ??= $m[2] ?? null;
+        }
+
+        // the error line without the attached original mail
+        $line = substr(preg_split('/\s-{2,}\s|Content-Description:|Reporting-MTA:/i', $reasonText, 2)[0], 0, 300);
+        if ($code === null) {
+            if (preg_match('/\bsaid:\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $line, $m)) {
+                $code = (int)$m[1];
+                $enhanced ??= $m[2] ?? null;
+            } elseif (preg_match('/\b(55[0-4])\b/', $line, $m)) {
+                $code = (int)$m[1];
+            }
+        }
+
+        // policy / security: not an invalid address
+        if ($enhanced !== null && str_starts_with($enhanced, '5.7.')) {
+            return -1;
+        }
+        // 553 also comes with relay or sender rejections, so it must not count as user unknown
+        // (that would remove the recipient). Not in ERR_REASON, counts as unknown reason.
+        if (in_array($code, [550, 551, 553], true)) {
+            return $code;
+        }
+        return stripos($line, 'recipient storage full') !== false ? 551 : -1;
     }
 
     /**

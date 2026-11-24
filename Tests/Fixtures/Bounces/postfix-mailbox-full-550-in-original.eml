@@ -1,0 +1,23 @@
+From: MAILER-DAEMON@mx.example.test
+To: bounce@cute-mailing.test
+Date: Wed, 07 Oct 2026 10:00:00 +0200
+Message-ID: <{{MSGID}}@mx.example.test>
+MIME-Version: 1.0
+Subject: Undelivered Mail Returned to Sender
+Content-Type: text/plain; charset=utf-8
+
+This is the mail system at host mx.example.test.
+The Postfix program
+
+<{{EMAIL}}>: host mx.example.test[10.0.0.1] said: 552 5.2.2 <{{EMAIL}}>: Recipient storage full (in reply to RCPT TO command)
+
+--- Original message headers ---
+Return-Path: <bounce@cute-mailing.test>
+X-TYPO3RCPT: {{RCPT_B64}}
+X-TYPO3NLUID: {{SENDOUT_UID}}
+Message-ID: <20261007.550.{{MSGID}}@newsletter.example.test>
+Date: Wed, 07 Oct 2026 09:00:00 +0200
+Subject: Newsletter, only 550 Euro
+To: {{EMAIL}}
+
+Our offer for 55012 Musterstadt: 550 Euro.

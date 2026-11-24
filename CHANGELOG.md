@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - Recipients that could not be removed from a recipient list are logged as warning instead of being ignored silently
+- Postfix bounces: the reason is read from the delivery status (Status, Diagnostic-Code, error line) and no longer from the attached original mail, where a "550" in a Message-ID or text caused a wrong "user unknown"; enhanced status 5.7.x is never "user unknown"
 
 ### Removed
 

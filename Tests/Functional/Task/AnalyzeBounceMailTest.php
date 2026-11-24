@@ -100,6 +100,8 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'out of office' => ['out-of-office', 'XOUT'],
             'spam' => ['spam', 'XSPAM'],
             'postfix user unknown' => ['postfix-550', '550'],
+            'postfix mailbox full, 550 only in the original mail' => ['postfix-mailbox-full-550-in-original', '551'],
+            'postfix relay denied (5.7.1)' => ['postfix-relay-denied', '-1'],
             'qmail user unknown' => ['qmail-550', '550'],
             'filter list' => ['xfilter-blocked', 'XFILTER'],
             'message size' => ['xsize-too-large', 'XSIZE'],
@@ -145,6 +147,25 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
         $report = $this->task->analyseReturnError('Mail delivery failed: 5.7.1 unable to relay for user@example.test');
 
         self::assertSame('-1', (string)$report['reason']);
+    }
+
+    public static function postfixDeliveryStatusDataProvider(): array
+    {
+        return [
+            'Diagnostic-Code 550 is user unknown' => ['Status: 5.1.1 Diagnostic-Code: smtp; 550 5.1.1 User unknown', '550'],
+            'Status 5.7.x is never user unknown' => ['Status: 5.7.1 Diagnostic-Code: smtp; 550 5.7.1 Rejected by policy', '-1'],
+            'Diagnostic-Code wins over a number in the original mail' => ['Status: 5.2.2 Diagnostic-Code: smtp; 551 mailbox full --- Original --- Message-ID: <550@x>', '551'],
+            'Status 5.7.x in the error line' => ['said: 550 5.7.1 blocked by policy --- Original --- X: 550', '-1'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('postfixDeliveryStatusDataProvider')]
+    public function postfixReasonIsReadFromTheDeliveryStatus(string $text, string $expectedReason): void
+    {
+        $report = $this->task->analyseReturnError('The Postfix program <user@example.test>: ' . $text);
+
+        self::assertSame($expectedReason, (string)$report['reason']);
     }
 
     // ------------------------------------------------------------------ list unsubscribe
