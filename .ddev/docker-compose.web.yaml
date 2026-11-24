@@ -1,0 +1,32 @@
+#ddev-silent-no-warn
+# Lokales Testsetup, alle Zugangsdaten hier sind reine Test-Werte
+services:
+    web:
+        environment:
+            - EXTENSION_KEY=rsmbouncemailprocessor
+            - PACKAGE_NAME=ressourcenmangel/rsmbouncemailprocessor
+            - TYPO3_DB_PASSWORD=root
+            - TYPO3_SETUP_ADMIN_EMAIL=admin@example.test
+            - TYPO3_SETUP_ADMIN_PASSWORD=Password:joh316
+            # GreenMail als Bounce-Postfach
+            - BOUNCE_HOST=greenmail
+            - BOUNCE_SMTP_PORT=3025
+            - BOUNCE_IMAP_PORT=3143
+            - BOUNCE_POP3_PORT=3110
+            - BOUNCE_USER=bounce
+            - BOUNCE_PASSWORD=bounce
+            - BOUNCE_ADDRESS=bounce@example.test
+        volumes:
+            # Repo-Root als Quelle fuer das Composer-Path-Repository (Symlink in den Instanzen)
+            - type: bind
+              source: ../
+              target: /var/www/rsmbouncemailprocessor
+              consistency: cached
+            # Instanzen liegen in Docker-Volumes, nicht im Repo
+            - v13-data:/var/www/html/v13
+            - v14-data:/var/www/html/v14
+volumes:
+    v13-data:
+        name: "${DDEV_SITENAME}-v13-data"
+    v14-data:
+        name: "${DDEV_SITENAME}-v14-data"

@@ -1,0 +1,20 @@
+#ddev-silent-no-warn
+# Bounce-Postfach fuer lokale Tests (SMTP 3025, IMAP 3143, POP3 3110)
+# Postfach: bounce@example.test, Login "bounce", Passwort "bounce" (nur lokal)
+services:
+    greenmail:
+        container_name: ddev-${DDEV_SITENAME}-greenmail
+        image: greenmail/standalone:2.1.8
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        environment:
+            GREENMAIL_OPTS: >-
+                -Dgreenmail.setup.test.all
+                -Dgreenmail.hostname=0.0.0.0
+                -Dgreenmail.users=bounce:bounce@example.test
+                -Dgreenmail.verbose
+        expose:
+            - "3025"
+            - "3110"
+            - "3143"
