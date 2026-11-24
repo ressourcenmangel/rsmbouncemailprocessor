@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\LoggerInterface;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
+use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -202,6 +203,92 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
         $report = $this->task->analyseReturnError('Delivery failure. ' . $text);
 
         self::assertSame($expectedReason, (string)$report['reason']);
+    }
+
+    // ------------------------------------------------------------------ mail handling
+
+    /**
+     * Every part of a multipart mail must be in the text exactly once (the buffer was handed to
+     * every part and the result appended again, so the text multiplied with each part).
+     */
+    #[Test]
+    public function imapGetmsgContainsEveryPartExactlyOnce(): void
+    {
+        $part = static fn(array $subParts = []): object => (object)(['type' => 0, 'encoding' => 0] + ($subParts ? ['parts' => $subParts] : []));
+        $structure = (object)['parts' => [$part([$part(), $part()]), $part()]];
+        $texts = ['1' => 'AAA', '1.1' => 'BBB', '1.2' => 'CCC', '2' => 'DDD'];
+
+        $task = new class ($structure, $texts) extends AnalyzeBounceMail {
+            public function __construct(private readonly object $structure, private readonly array $texts)
+            {
+                parent::__construct();
+            }
+
+            protected function imapFetchStructure(int $mid): object|false
+            {
+                return $this->structure;
+            }
+
+            protected function imapFetchPart(int $mid, string|int $partno): string|false
+            {
+                return $this->texts[(string)$partno];
+            }
+        };
+
+        $message = $task->imapGetmsg(1);
+
+        foreach ($texts as $text) {
+            self::assertSame(1, substr_count($message, $text), $text);
+        }
+        self::assertSame("AAA\n\nBBB\n\nCCC\n\nDDD\n\n", $message);
+    }
+
+    /**
+     * A mail whose processing throws is marked as seen (never deleted), the run goes on.
+     */
+    #[Test]
+    public function failingMailDoesNotStopTheRun(): void
+    {
+        $bad = $this->createMock(Mailmessage::class);
+        $bad->method('getUid')->willReturn(11);
+        $bad->method('getSubject')->willThrowException(new \RuntimeException('imap broke for user@example.test', 1700000001));
+        $bad->expects(self::never())->method('delete');
+        $bad->expects(self::once())->method('setFlag')->with('SEEN');
+
+        $good = $this->createMock(Mailmessage::class);
+        $good->method('getUid')->willReturn(12);
+        $good->method('getSubject')->willReturn('Undelivered Mail Returned to Sender');
+        $good->method('getAddresses')->willReturn(['address' => 'user@example.test']);
+        $good->expects(self::once())->method('delete');
+        $good->expects(self::never())->method('setFlag');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be processed'),
+            self::callback(static fn(array $context): bool => $context['uid'] === 11
+                && $context['exception'] === \RuntimeException::class
+                && $context['code'] === 1700000001
+                && !str_contains(json_encode($context), '@'))
+        );
+
+        $task = new class () extends AnalyzeBounceMail {
+            public function getRawHeaders($uid)
+            {
+                return "X-TYPO3RCPT: " . base64_encode('user@example.test') . "\n";
+            }
+
+            public function imapGetmsg(int $mid): string
+            {
+                return 'The Postfix program <user@example.test>: said: 550 5.1.1 unknown';
+            }
+        };
+        $task->setLogger($logger);
+        $task->initClass();
+        $this->task = $task;
+
+        $this->call('processMessages', [$bad, $good]);
+
+        self::assertCount(1, $this->getProperty('arBounces'));
     }
 
     // ------------------------------------------------------------------ list unsubscribe
@@ -537,6 +624,11 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     {
         $property = new \ReflectionProperty(AnalyzeBounceMail::class, $name);
         $property->setValue($this->task, $value);
+    }
+
+    private function getProperty(string $name): mixed
+    {
+        return (new \ReflectionProperty(AnalyzeBounceMail::class, $name))->getValue($this->task);
     }
 
     private function call(string $method, mixed ...$arguments): mixed

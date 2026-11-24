@@ -340,26 +340,7 @@ class AnalyzeBounceMail extends AbstractTask
             // get the messages from the server stream
             $this->messages = $this->mailServer->search('UNSEEN', $this->maxProcessed);
 
-            /** @var Message $message The message object */
-            foreach ($this->messages as $message) {
-
-                // process the mail
-                $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
-                if ($listunsubscribeHeader) {
-                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader, $this->getSenderAddress($message));
-
-                } else {
-                    $result = $this->processBounceMail($message);
-
-                }
-
-                // delete the mail or set it to seen
-                if ($result || $this->getDeletealways()) {
-                    $message->delete();
-                } else {
-                    $message->setFlag('SEEN');
-                }
-            }
+            $this->processMessages($this->messages);
 
             // expunge to delete permanently
             $this->mailServer->expunge();
@@ -378,6 +359,51 @@ class AnalyzeBounceMail extends AbstractTask
 
         return $result;
 
+    }
+
+    /**
+     * Processes the fetched mails one by one, then deletes them or sets them to seen.
+     *
+     * @param Mailmessage[] $messages
+     */
+    private function processMessages(array $messages): void
+    {
+        foreach ($messages as $message) {
+            try {
+                // process the mail
+                $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
+                if ($listunsubscribeHeader) {
+                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader, $this->getSenderAddress($message));
+
+                } else {
+                    $result = $this->processBounceMail($message);
+
+                }
+
+                // delete the mail or set it to seen
+                if ($result || $this->getDeletealways()) {
+                    $message->delete();
+                } else {
+                    $message->setFlag('SEEN');
+                }
+            } catch (\Throwable $exception) {
+                // one broken mail must not stop the run, it is never deleted (no addresses in the log)
+                try {
+                    $uid = $message->getUid();
+                } catch (\Throwable) {
+                    $uid = null;
+                }
+                $this->logger?->warning('Mail could not be processed, set to seen and skipped', [
+                    'uid' => $uid,
+                    'exception' => $exception::class,
+                    'code' => $exception->getCode(),
+                ]);
+                try {
+                    $message->setFlag('SEEN');
+                } catch (\Throwable) {
+                }
+            }
+        }
     }
 
     /**
@@ -1072,30 +1098,42 @@ class AnalyzeBounceMail extends AbstractTask
         $plainmsg = '';
 
         // BODY
-        $structure = imap_fetchstructure($this->mailServer->getImapStream(), $mid, FT_UID);
+        $structure = $this->imapFetchStructure($mid);
         if (!isset($structure->parts)) {
             // getpart($mbox,$mid,$s,0);  // pass 0 as part-number
-            $plainmsg .= $this->imapGetPart($mid, $structure, 0, $plainmsg);  // pass 0 as part-number
+            $plainmsg .= $this->imapGetPart($mid, $structure, 0);  // pass 0 as part-number
         } else {  // multipart: cycle through each part
             foreach ($structure->parts as $partno0 => $part) {
                 // getpart($mbox,$mid,$p,$partno0+1);
-                $plainmsg .= $this->imapGetPart($mid, $part, $partno0 + 1, $plainmsg);
+                $plainmsg .= $this->imapGetPart($mid, $part, $partno0 + 1);
             }
         }
 
         return $plainmsg;
     }
 
-    // https://www.php.net/manual/en/function.imap-fetchstructure.php
-    function imapGetPart($mid, $part, $partno, $plainmsg)
+    protected function imapFetchStructure(int $mid): object|false
     {
+        return imap_fetchstructure($this->mailServer->getImapStream(), $mid, FT_UID);
+    }
+
+    protected function imapFetchPart(int $mid, string|int $partno): string|false
+    {
+        $stream = $this->mailServer->getImapStream();
+        return $partno ? imap_fetchbody($stream, $mid, strval($partno), FT_UID | FT_PEEK) : imap_body($stream, $mid, FT_UID | FT_PEEK);
+    }
+
+    // https://www.php.net/manual/en/function.imap-fetchstructure.php
+    function imapGetPart($mid, $part, $partno)
+    {
+        // text of this part and of its subparts, every part exactly once
+        $plainmsg = '';
 
         // $partno = '1', '2', '2.1', '2.1.3', etc for multipart, 0 if simple
 
         // DECODE DATA
         // $mid is the IMAP uid, which differs from the message number as soon as mails were deleted
-        $data = ($partno) ? imap_fetchbody($this->mailServer->getImapStream(), $mid,
-            strval($partno), FT_UID | FT_PEEK) : imap_body($this->mailServer->getImapStream(), $mid, FT_UID | FT_PEEK);
+        $data = $this->imapFetchPart($mid, $partno);
 
         // Any part may be encoded, even plain text messages, so check everything.
         if ($part->encoding == 4) {
@@ -1138,7 +1176,7 @@ class AnalyzeBounceMail extends AbstractTask
         // SUBPART RECURSION
         if (isset($part->parts)) {
             foreach ($part->parts as $partno0 => $p2) {
-                $this->imapGetPart($mid, $p2, $partno . '.' . ($partno0 + 1), $plainmsg);  // 1.2, 1.2.1, etc.
+                $plainmsg .= $this->imapGetPart($mid, $p2, $partno . '.' . ($partno0 + 1));  // 1.2, 1.2.1, etc.
 
             }
         }
