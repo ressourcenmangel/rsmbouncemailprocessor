@@ -108,6 +108,24 @@ class ProcessBounceMail extends AbstractTask
         // Walk through the recipientreport and get those rcords that reached their limits
         $connection = $this->connectionPool()->getConnectionForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
 
+        // Circuit breaker: a blacklisting or a misconfiguration can push many recipients over their
+        // limits at once. Remove nobody in that case, the error is shown in the scheduler module.
+        $maxRemovalsPerRun = (int)($this->conf['settings.']['maxRemovalsPerRun'] ?? 0);
+        if ($maxRemovalsPerRun > 0) {
+            $candidates = $this->countRemovalCandidates();
+            if ($candidates > $maxRemovalsPerRun) {
+                $message = sprintf(
+                    '%d recipients would be removed, more than maxRemovalsPerRun = %d. Nothing was removed. '
+                    . 'Check the cause first (blacklisting of the sending server, wrong configuration, bounce reasons in the recipient reports). '
+                    . 'Then either fix it or raise settings.maxRemovalsPerRun (0 disables the check) to continue.',
+                    $candidates,
+                    $maxRemovalsPerRun
+                );
+                $this->logger?->error($message, ['candidates' => $candidates, 'maxRemovalsPerRun' => $maxRemovalsPerRun]);
+                throw new \RuntimeException($message, 1763900001);
+            }
+        }
+
         // Walk through all the delete limits
         if (isset($this->conf['settings.']['deletelimits.'])) {
             foreach ($this->conf['settings.']['deletelimits.'] as $key => $limit) {
@@ -200,6 +218,32 @@ class ProcessBounceMail extends AbstractTask
         return true;
     }
 
+
+    /**
+     * number of distinct recipients that reached any delete limit and are not removed yet
+     */
+    private function countRemovalCandidates(): int
+    {
+        $emails = [];
+        foreach ($this->conf['settings.']['deletelimits.'] ?? [] as $key => $limit) {
+            if ($key === '' || $limit <= 0) {
+                continue;
+            }
+            $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
+            $result = $queryBuilder
+                ->select('email')
+                ->from('tx_rsmbouncemailprocessor_domain_model_recipientreport')
+                ->where(
+                    $queryBuilder->expr()->gte($key, $queryBuilder->createNamedParameter($limit, Connection::PARAM_INT)),
+                    $queryBuilder->expr()->eq('removed', 0),
+                )
+                ->executeQuery();
+            while ($email = $result->fetchOne()) {
+                $emails[strtolower((string)$email)] = true;
+            }
+        }
+        return count($emails);
+    }
 
     /**
      * returns the TS settings for a specific path

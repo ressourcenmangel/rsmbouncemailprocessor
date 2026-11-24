@@ -205,6 +205,63 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertSame(0, (int)$this->report()['removed']);
     }
 
+    // ------------------------------------------------------------------ circuit breaker
+
+    /**
+     * Two addresses would be removed, more than the allowed maximum: nothing is removed or marked,
+     * the scheduler gets an exception with a plain text message (shown in the scheduler module).
+     */
+    #[Test]
+    public function nothingIsRemovedWhenMoreRecipientsWouldBeRemovedThanAllowed(): void
+    {
+        $this->bounce('550', 2);
+        $this->bounce('550', 2, 'other@example.test');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->with(
+            self::stringContains('maxRemovalsPerRun'),
+            self::callback(static fn(array $context): bool => $context['candidates'] === 2
+                && $context['maxRemovalsPerRun'] === 1
+                && !str_contains(json_encode($context), '@'))
+        );
+
+        $exception = null;
+        try {
+            $this->process(true, null, $logger, 1);
+        } catch (\RuntimeException $exception) {
+        }
+        self::assertNotNull($exception, 'execute() must throw');
+        self::assertStringContainsString('2 recipients', $exception->getMessage());
+        self::assertStringContainsString('maxRemovalsPerRun = 1', $exception->getMessage());
+        self::assertStringNotContainsString('@', $exception->getMessage());
+
+        self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
+        foreach ($this->rows(self::RECIPIENT_TABLE) as $report) {
+            self::assertSame(0, (int)$report['removed']);
+        }
+        self::assertCount(0, $this->rows(self::DELETELOG_TABLE));
+    }
+
+    public static function removalsWithinTheMaximumDataProvider(): array
+    {
+        return [
+            'candidates equal the maximum' => [2],
+            'check disabled with 0' => [0],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('removalsWithinTheMaximumDataProvider')]
+    public function recipientsAreRemovedWhenTheMaximumIsNotExceeded(int $maxRemovalsPerRun): void
+    {
+        $this->bounce('550', 2);
+        $this->bounce('550', 2, 'other@example.test');
+
+        $this->process(true, null, null, $maxRemovalsPerRun);
+
+        self::assertSame([], $this->recipientList->getEmails());
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /**
@@ -262,13 +319,13 @@ final class ProcessBounceMailTest extends FunctionalTestCase
     /**
      * Counts $times bounces for the recipient, one analyzer run each (counters are cumulative).
      */
-    private function bounce(string $reasonId, int $times = 1): void
+    private function bounce(string $reasonId, int $times = 1, string $email = self::EMAIL): void
     {
         for ($run = 0; $run < $times; $run++) {
             $this->setProperty($this->analyzer, 'reports', []);
             $this->setProperty($this->analyzer, 'arBounces', [[
                 'nluid' => 1,
-                'recipient' => self::EMAIL,
+                'recipient' => $email,
                 'reason_id' => $reasonId,
                 'reason_text' => ERR_REASON[$reasonId],
                 'sender' => SENDER_ORG,
@@ -278,7 +335,7 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
     }
 
-    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null): void
+    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null, ?int $maxRemovalsPerRun = null): void
     {
         // ProcessBounceMail fetches the (singleton) newsletter repository with makeInstance() in initClass()
         $newsletter = $this->createStub(Newsletter::class);
@@ -287,8 +344,8 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         $repository->method('findByUid')->willReturn($newsletter);
         GeneralUtility::setSingletonInstance(NewsletterRepository::class, $repository);
 
-        $task = new class ($deleteLog) extends ProcessBounceMail {
-            public function __construct(private readonly bool $deleteLog)
+        $task = new class ($deleteLog, $maxRemovalsPerRun) extends ProcessBounceMail {
+            public function __construct(private readonly bool $deleteLog, private readonly ?int $maxRemovalsPerRun)
             {
                 parent::__construct();
             }
@@ -297,6 +354,9 @@ final class ProcessBounceMailTest extends FunctionalTestCase
             {
                 parent::initClass();
                 $this->conf['settings.']['deletelog.'] = ['enabled' => $this->deleteLog ? '1' : '0', 'pid' => '94'];
+                if ($this->maxRemovalsPerRun !== null) {
+                    $this->conf['settings.']['maxRemovalsPerRun'] = (string)$this->maxRemovalsPerRun;
+                }
             }
         };
 

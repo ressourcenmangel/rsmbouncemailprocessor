@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Setting `settings.maxRemovalsPerRun` (default 50): the processing task fails without removing anyone when more recipients would be removed in one run
 - DDEV setup for local testing with TYPO3 13 and 14
 
 ### Changed
