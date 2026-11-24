@@ -843,8 +843,9 @@ class AnalyzeBounceMail extends AbstractTask
                 $cp['reason'] = 550;
                 // No such user
             } elseif (stristr($cp['reason_text'], '553')) {
-                // 553 mailbox name not allowed: the address is invalid, same as user unknown
-                $cp['reason'] = 550;
+                // 553 also comes with relay or sender rejections, so it must not count as user unknown
+                // (that would remove the recipient). Not in ERR_REASON, counts as unknown reason.
+                $cp['reason'] = 553;
                 // Mailbox full
             } elseif (stristr($cp['reason_text'], '551')) {
                 $cp['reason'] = 551;

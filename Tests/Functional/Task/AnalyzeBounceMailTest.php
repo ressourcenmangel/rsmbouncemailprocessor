@@ -107,8 +107,6 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'outlook user unknown' => ['outlook', '550'],
             'cannot be delivered, quota' => ['cannot-be-delivered', '551'],
             'unknown reason' => ['unknown-reason', '-1'],
-            // Postfix 553 returned a reason that does not exist in ERR_REASON
-            'postfix 553 mailbox name not allowed' => ['postfix-553', '550'],
         ];
     }
 
@@ -122,6 +120,20 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
 
         self::assertSame($expectedReason, (string)$report['reason']);
         self::assertArrayHasKey($report['reason'], ERR_REASON);
+    }
+
+    /**
+     * 553 is not a reason of its own, it is not allowed to end up as "user unknown".
+     */
+    #[Test]
+    public function postfix553IsNotDetectedAsUserUnknown(): void
+    {
+        [, $body] = $this->bounce('postfix-553');
+
+        $report = $this->task->analyseReturnError($this->flatten($body));
+
+        self::assertSame('553', (string)$report['reason']);
+        self::assertArrayNotHasKey($report['reason'], ERR_REASON);
     }
 
     // ------------------------------------------------------------------ list unsubscribe

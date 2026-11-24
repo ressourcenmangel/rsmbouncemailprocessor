@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
 use RSM\Rsmbouncemailprocessor\Task\ProcessBounceMail;
+use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -151,7 +152,76 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertCount(1, $this->rows(self::DELETELOG_TABLE), 'no second delete log entry');
     }
 
+    /**
+     * 553 also comes with relay or sender rejections, it must not be taken as "user unknown" and
+     * lead to removing the recipient. As in 2.2.1 it counts as unknown reason.
+     */
+    #[Test]
+    public function postfix553CountsAsUnknownReasonAndDoesNotRemoveRecipient(): void
+    {
+        $this->bounceMail('postfix-553', 2);
+        $this->process(true);
+
+        $report = $this->report();
+        self::assertSame(2, (int)$report['countunknownreason']);
+        self::assertSame(0, (int)$report['countuserunknown']);
+        self::assertSame(0, (int)$report['removed']);
+        self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
+    }
+
     // ------------------------------------------------------------------ helpers
+
+    /**
+     * Analyses a bounce mail from Tests/Fixtures/Bounces like AnalyzeBounceMail::execute() does,
+     * only the IMAP access is replaced by the fixture.
+     */
+    private function bounceMail(string $template, int $times = 1): void
+    {
+        $eml = str_replace(
+            ['{{EMAIL}}', '{{RCPT_B64}}', '{{SENDOUT_UID}}', '{{RCPT_UID}}', '{{MSGID}}'],
+            [self::EMAIL, base64_encode(self::EMAIL), '55', '1', 'test'],
+            (string)file_get_contents(__DIR__ . '/../../Fixtures/Bounces/' . $template . '.eml')
+        );
+        [$header, $body] = explode("\n\n", $eml, 2);
+
+        $analyzer = new class ($header . "\n", $body) extends AnalyzeBounceMail {
+            public function __construct(private readonly string $header, private readonly string $body)
+            {
+                parent::__construct();
+            }
+
+            public function getRawHeaders($uid)
+            {
+                return $this->header;
+            }
+
+            public function imapGetmsg(int $mid): string
+            {
+                return $this->body;
+            }
+        };
+        $analyzer->initClass();
+
+        $newsletter = $this->createStub(Newsletter::class);
+        $newsletter->method('getUid')->willReturn(1);
+        $sendout = $this->createStub(SendOut::class);
+        $sendout->method('getNewsletter')->willReturn($newsletter);
+        $sendOutRepository = $this->createStub(SendOutRepository::class);
+        $sendOutRepository->method('findByUid')->willReturn($sendout);
+        $this->setProperty($analyzer, 'sendOutRepository', $sendOutRepository);
+
+        $message = $this->createStub(Mailmessage::class);
+        $message->method('getUid')->willReturn(1);
+        $message->method('getSubject')->willReturn('Undelivered Mail Returned to Sender');
+
+        for ($run = 0; $run < $times; $run++) {
+            $this->setProperty($analyzer, 'reports', []);
+            $this->setProperty($analyzer, 'arBounces', []);
+            (new \ReflectionMethod(AnalyzeBounceMail::class, 'processBounceMail'))->invoke($analyzer, $message);
+            $this->call($analyzer, 'createReport');
+            $this->call($analyzer, 'saveReportBouncePerRecipient');
+        }
+    }
 
     /**
      * Counts $times bounces for the recipient, one analyzer run each (counters are cumulative).
