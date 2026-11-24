@@ -693,6 +693,10 @@ class AnalyzeBounceMail extends AbstractTask
                         $row = $resultRows->fetchAssociative();
                         if ($row) {
                             $uidread = $row['uid'];
+                        }
+                        // A removed address that bounces again has subscribed anew: count from 0,
+                        // otherwise the old counters would remove it again with the first bounce.
+                        if ($row && (int)$row['removed'] === 0) {
                             $countunknownreason = $row['countunknownreason'];
                             $countnosenderfound = $row['countnosenderfound'];
                             $countuserunknown = $row['countuserunknown'];

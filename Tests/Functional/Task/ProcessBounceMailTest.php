@@ -125,6 +125,32 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertCount(0, $this->rows(self::DELETELOG_TABLE));
     }
 
+    /**
+     * An address that has been removed and subscribes again must start with fresh counters,
+     * otherwise a single out of office reply would remove it a second time.
+     */
+    #[Test]
+    public function countersStartAtZeroWhenAddressBouncesAgainAfterRemoval(): void
+    {
+        $this->bounce('550', 2);
+        $this->process(true);
+        self::assertGreaterThan(0, (int)$this->report()['removed']);
+
+        // subscribes again
+        $this->recipientList->addEmail(self::EMAIL);
+
+        $this->bounce('XOUT');
+        $report = $this->report();
+        self::assertSame(0, (int)$report['countuserunknown'], 'old counters must not be taken over');
+        self::assertSame(1, (int)$report['countoutofoffice']);
+        self::assertSame(0, (int)$report['removed']);
+
+        $this->process(true);
+
+        self::assertContains(self::EMAIL, $this->recipientList->getEmails());
+        self::assertCount(1, $this->rows(self::DELETELOG_TABLE), 'no second delete log entry');
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /**
@@ -208,6 +234,11 @@ final class ArrayRecipientList extends RecipientList
     {
         $this->uid = $uid;
         $this->recipientListPage = $page;
+    }
+
+    public function addEmail(string $email): void
+    {
+        $this->emails[] = $email;
     }
 
     /** @return list<string> */
