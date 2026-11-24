@@ -224,10 +224,10 @@ module.tx_rsmbouncemailprocessor {
         }
 
         # Task\ProcessBounceMail.php
-        # Circuit breaker: if more recipients than this would be removed in one run, nobody is removed
-        # and the task fails with an error. Hints at blacklisting or a misconfiguration.
-        # 0 disables the check
-        maxRemovalsPerRun = 50
+        # Circuit breaker: if the recipients that would be removed now plus the recipients removed in the
+        # last 24 hours are more than this, nobody is removed and the task fails with an error.
+        # Hints at blacklisting or a misconfiguration. 0 disables the check
+        maxRemovalsPer24h = 50
 
         # Task/CleanTaskQueue
         deletetables{

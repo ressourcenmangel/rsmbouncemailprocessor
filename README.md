@@ -90,8 +90,8 @@ module.tx_rsmbouncemailprocessor.settings.deletelimits {
 }
 ```
 
-#### settings.maxRemovalsPerRun
-Circuit breaker, default 50. If more different recipients than this reach a delete limit in one run (for example because the sending server is blacklisted or misconfigured), nobody is removed and the task "RSM process bounce mail" fails with an error message in the scheduler module.
+#### settings.maxRemovalsPer24h
+Circuit breaker, default 50. If the different recipients that reach a delete limit now, plus the recipients that were already removed in the last 24 hours, are more than this (for example because the sending server is blacklisted or misconfigured), nobody is removed and the task "RSM process bounce mail" fails with an error message in the scheduler module.
 Check the cause first, then fix it or raise the value to continue. 0 disables the check.
 
 ### settings.deletetables

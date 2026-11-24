@@ -111,19 +111,23 @@ class ProcessBounceMail extends AbstractTask
         $connection = $this->connectionPool()->getConnectionForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
 
         // Circuit breaker: a blacklisting or a misconfiguration can push many recipients over their
-        // limits at once. Remove nobody in that case, the error is shown in the scheduler module.
-        $maxRemovalsPerRun = (int)($this->conf['settings.']['maxRemovalsPerRun'] ?? 0);
-        if ($maxRemovalsPerRun > 0) {
+        // limits at once. The candidates of this run plus the recipients removed in the last 24 hours
+        // must not exceed the maximum, otherwise nobody is removed. The error is shown in the scheduler module.
+        $maxRemovalsPer24h = (int)($this->conf['settings.']['maxRemovalsPer24h'] ?? 0);
+        if ($maxRemovalsPer24h > 0) {
             $candidates = $this->countRemovalCandidates();
-            if ($candidates > $maxRemovalsPerRun) {
+            $recentlyRemoved = $this->countRecentlyRemoved();
+            if ($candidates + $recentlyRemoved > $maxRemovalsPer24h) {
                 $message = sprintf(
-                    '%d recipients would be removed, more than maxRemovalsPerRun = %d. Nothing was removed. '
+                    '%d recipients (%d candidates now, %d removed in the last 24 hours) are more than maxRemovalsPer24h = %d. Nothing was removed. '
                     . 'Check the cause first (blacklisting of the sending server, wrong configuration, bounce reasons in the recipient reports). '
-                    . 'Then either fix it or raise settings.maxRemovalsPerRun (0 disables the check) to continue.',
+                    . 'Then either fix it or raise settings.maxRemovalsPer24h (0 disables the check) to continue.',
+                    $candidates + $recentlyRemoved,
                     $candidates,
-                    $maxRemovalsPerRun
+                    $recentlyRemoved,
+                    $maxRemovalsPer24h
                 );
-                $this->logger?->error($message, ['candidates' => $candidates, 'maxRemovalsPerRun' => $maxRemovalsPerRun]);
+                $this->logger?->error($message, ['candidates' => $candidates, 'recentlyRemoved' => $recentlyRemoved, 'maxRemovalsPer24h' => $maxRemovalsPer24h]);
                 throw new \RuntimeException($message, 1763900001);
             }
         }
@@ -220,6 +224,20 @@ class ProcessBounceMail extends AbstractTask
         return true;
     }
 
+
+    /**
+     * number of recipients that were removed within the last 24 hours
+     */
+    private function countRecentlyRemoved(): int
+    {
+        $queryBuilder = $this->connectionPool()->getQueryBuilderForTable('tx_rsmbouncemailprocessor_domain_model_recipientreport');
+        return (int)$queryBuilder
+            ->count('uid')
+            ->from('tx_rsmbouncemailprocessor_domain_model_recipientreport')
+            ->where($queryBuilder->expr()->gt('removed', $queryBuilder->createNamedParameter(time() - 86400, Connection::PARAM_INT)))
+            ->executeQuery()
+            ->fetchOne();
+    }
 
     /**
      * number of distinct recipients that reached any delete limit and are not removed yet

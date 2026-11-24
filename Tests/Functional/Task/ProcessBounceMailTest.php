@@ -247,9 +247,9 @@ final class ProcessBounceMailTest extends FunctionalTestCase
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())->method('error')->with(
-            self::stringContains('maxRemovalsPerRun'),
+            self::stringContains('maxRemovalsPer24h'),
             self::callback(static fn(array $context): bool => $context['candidates'] === 2
-                && $context['maxRemovalsPerRun'] === 1
+                && $context['maxRemovalsPer24h'] === 1
                 && !str_contains(json_encode($context), '@'))
         );
 
@@ -260,7 +260,7 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
         self::assertNotNull($exception, 'execute() must throw');
         self::assertStringContainsString('2 recipients', $exception->getMessage());
-        self::assertStringContainsString('maxRemovalsPerRun = 1', $exception->getMessage());
+        self::assertStringContainsString('maxRemovalsPer24h = 1', $exception->getMessage());
         self::assertStringNotContainsString('@', $exception->getMessage());
 
         self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
@@ -268,6 +268,39 @@ final class ProcessBounceMailTest extends FunctionalTestCase
             self::assertSame(0, (int)$report['removed']);
         }
         self::assertCount(0, $this->rows(self::DELETELOG_TABLE));
+    }
+
+    /**
+     * 30 recipients were removed in the last 24 hours and 30 more reached the limit: together more
+     * than the allowed 50, nothing is removed.
+     */
+    #[Test]
+    public function recentRemovalsCountTowardsTheMaximum(): void
+    {
+        $this->insertReports(30, 'gone', time() - 3600, 2);
+        $this->insertReports(30, 'candidate', 0, 2);
+
+        $exception = null;
+        try {
+            $this->process(false, null, null, 50);
+        } catch (\RuntimeException $exception) {
+        }
+
+        self::assertNotNull($exception, 'execute() must throw');
+        self::assertStringContainsString('60 recipients', $exception->getMessage());
+        self::assertStringContainsString('30 removed in the last 24 hours', $exception->getMessage());
+        self::assertSame(30, $this->countRows('removed = 0'), 'no candidate was removed');
+    }
+
+    #[Test]
+    public function removalsOlderThan24HoursDoNotCountTowardsTheMaximum(): void
+    {
+        $this->insertReports(30, 'gone', time() - 90000, 2);
+        $this->insertReports(30, 'candidate', 0, 2);
+
+        $this->process(false, null, null, 50);
+
+        self::assertSame(0, $this->countRows('removed = 0'), 'all candidates are removed');
     }
 
     public static function removalsWithinTheMaximumDataProvider(): array
@@ -280,12 +313,12 @@ final class ProcessBounceMailTest extends FunctionalTestCase
 
     #[Test]
     #[DataProvider('removalsWithinTheMaximumDataProvider')]
-    public function recipientsAreRemovedWhenTheMaximumIsNotExceeded(int $maxRemovalsPerRun): void
+    public function recipientsAreRemovedWhenTheMaximumIsNotExceeded(int $maxRemovalsPer24h): void
     {
         $this->bounce('550', 2);
         $this->bounce('550', 2, 'other@example.test');
 
-        $this->process(true, null, null, $maxRemovalsPerRun);
+        $this->process(true, null, null, $maxRemovalsPer24h);
 
         self::assertSame([], $this->recipientList->getEmails());
     }
@@ -363,7 +396,7 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
     }
 
-    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null, ?int $maxRemovalsPerRun = null): void
+    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null, ?int $maxRemovalsPer24h = null): void
     {
         // ProcessBounceMail fetches the (singleton) newsletter repository with makeInstance() in initClass()
         $newsletter = $this->createStub(Newsletter::class);
@@ -372,8 +405,8 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         $repository->method('findByUid')->willReturn($newsletter);
         GeneralUtility::setSingletonInstance(NewsletterRepository::class, $repository);
 
-        $task = new class ($deleteLog, $maxRemovalsPerRun) extends ProcessBounceMail {
-            public function __construct(private readonly bool $deleteLog, private readonly ?int $maxRemovalsPerRun)
+        $task = new class ($deleteLog, $maxRemovalsPer24h) extends ProcessBounceMail {
+            public function __construct(private readonly bool $deleteLog, private readonly ?int $maxRemovalsPer24h)
             {
                 parent::__construct();
             }
@@ -382,8 +415,8 @@ final class ProcessBounceMailTest extends FunctionalTestCase
             {
                 parent::initClass();
                 $this->conf['settings.']['deletelog.'] = ['enabled' => $this->deleteLog ? '1' : '0', 'pid' => '94'];
-                if ($this->maxRemovalsPerRun !== null) {
-                    $this->conf['settings.']['maxRemovalsPerRun'] = (string)$this->maxRemovalsPerRun;
+                if ($this->maxRemovalsPer24h !== null) {
+                    $this->conf['settings.']['maxRemovalsPer24h'] = (string)$this->maxRemovalsPer24h;
                 }
             }
         };
@@ -393,6 +426,25 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
 
         self::assertTrue($task->execute());
+    }
+
+    private function insertReports(int $count, string $prefix, int $removed, int $countUserUnknown): void
+    {
+        $connection = $this->get(ConnectionPool::class)->getConnectionForTable(self::RECIPIENT_TABLE);
+        for ($i = 0; $i < $count; $i++) {
+            $connection->insert(self::RECIPIENT_TABLE, [
+                'pid' => 94,
+                'email' => $prefix . $i . '@example.test',
+                'countuserunknown' => $countUserUnknown,
+                'removed' => $removed,
+            ]);
+        }
+    }
+
+    private function countRows(string $where): int
+    {
+        return (int)$this->get(ConnectionPool::class)->getConnectionForTable(self::RECIPIENT_TABLE)
+            ->executeQuery('SELECT COUNT(*) FROM ' . self::RECIPIENT_TABLE . ' WHERE ' . $where)->fetchOne();
     }
 
     private function report(): array
