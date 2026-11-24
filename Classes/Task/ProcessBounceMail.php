@@ -146,8 +146,14 @@ class ProcessBounceMail extends AbstractTask
                                     $this->persistenceManager()->persistAll();
                                     $removed = true;
                                     $removedFromList = $recipientList->getRecipientsCount() < $countBefore;
-                                } catch (\Exception) {
+                                } catch (\Exception $exception) {
                                     $removedFromList = false;
+                                    $this->logger?->warning('Recipient could not be removed from the recipient list', [
+                                        'recipientreport' => (int)$row['uid'],
+                                        'type' => $recipientList::class,
+                                        'exception' => $exception::class,
+                                        'code' => $exception->getCode(),
+                                    ]);
                                 }
 
                                 // one delete log entry per list the address has been removed from

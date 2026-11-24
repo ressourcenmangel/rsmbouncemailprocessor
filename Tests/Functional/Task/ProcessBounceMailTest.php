@@ -7,6 +7,7 @@ namespace RSM\Rsmbouncemailprocessor\Tests\Functional\Task;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LoggerInterface;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
 use RSM\Rsmbouncemailprocessor\Task\ProcessBounceMail;
 use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
@@ -172,6 +173,38 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
     }
 
+    /**
+     * Removing must not fail silently: the error is logged, the report is not marked as removed
+     * so the next run tries again.
+     */
+    #[Test]
+    public function failedRemovalIsLoggedAsWarning(): void
+    {
+        $this->bounce('550', 2);
+
+        $list = $this->createStub(RecipientList::class);
+        $list->method('getUid')->willReturn(7);
+        $list->method('getRecipientsCount')->willReturn(2);
+        $list->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('connector broke for ' . self::EMAIL, 1700000000));
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be removed'),
+            // no personal data in the log: report uid, class names and code instead of address and message
+            self::callback(function (array $context) use ($list): bool {
+                return $context['recipientreport'] === (int)$this->report()['uid']
+                    && $context['type'] === $list::class
+                    && $context['exception'] === \RuntimeException::class
+                    && $context['code'] === 1700000000
+                    && !str_contains(json_encode($context), '@');
+            })
+        );
+
+        $this->process(false, $list, $logger);
+
+        self::assertSame(0, (int)$this->report()['removed']);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /**
@@ -245,11 +278,11 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         }
     }
 
-    private function process(bool $deleteLog): void
+    private function process(bool $deleteLog, ?RecipientList $recipientList = null, ?LoggerInterface $logger = null): void
     {
         // ProcessBounceMail fetches the (singleton) newsletter repository with makeInstance() in initClass()
         $newsletter = $this->createStub(Newsletter::class);
-        $newsletter->method('getRecipientList')->willReturn($this->recipientList);
+        $newsletter->method('getRecipientList')->willReturn($recipientList ?? $this->recipientList);
         $repository = $this->createStub(NewsletterRepository::class);
         $repository->method('findByUid')->willReturn($newsletter);
         GeneralUtility::setSingletonInstance(NewsletterRepository::class, $repository);
@@ -266,6 +299,10 @@ final class ProcessBounceMailTest extends FunctionalTestCase
                 $this->conf['settings.']['deletelog.'] = ['enabled' => $this->deleteLog ? '1' : '0', 'pid' => '94'];
             }
         };
+
+        if ($logger !== null) {
+            $task->setLogger($logger);
+        }
 
         self::assertTrue($task->execute());
     }
