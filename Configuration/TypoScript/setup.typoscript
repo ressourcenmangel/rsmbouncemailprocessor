@@ -16,35 +16,29 @@ module.tx_rsmbouncemailprocessor {
         reasontext {
 
             # user unknown
+            # Only specific texts, generic phrases like "could not be delivered" also appear in
+            # spam or policy rejections. Delivery status fields (Status, Diagnostic-Code) win over these texts.
             550 {
                 02 = 550 5.1.1 recipient
                 03 = 550 requested action not taken
                 04 = 550-5.1.1 the email account that you tried to reach does not exist
-                05 = a message that you sent could not be delivered to one or more
                 06 = account does not exist
                 07 = account has been disabled or discontinued
                 08 = account that you tried to reach is disabled
                 09 = address rejected
-                10 = be delivered to one or more recipients
                 11 = bitte entfernen Sie diese Adresse aus Ihrem Verteiler
-                12 = da sie keine berechtigung zum senden an diesen empf
                 13 = delivery failed 550
                 14 = destination addresses were unknown
                 15 = die eingegebene e-mail-adresse konnte nicht gefunden werden
-                16 = Diese Nachricht konnte nicht zugestellt werden
                 17 = does not have an account here
                 18 = domino directory entry does not
-                19 = hop count exceeded
                 20 = ihnen die berechtigung zu erteilen
-                21 = ihre nachricht wird nicht gesendet, da sie zu gro
                 22 = inactive user
                 23 = invalid recipient
                 24 = is not a valid mailbox
                 25 = is unknown at host
-                26 = konnte leider nicht zugestellt werden
                 27 = mailaddress is administratively disabled
                 28 = mailbox unavailable
-                29 = maximum forwarding loop count exceeded
                 30 = nicht existierendes mailkonto
                 31 = nicht im domino-verzeichnis aufge
                 32 = no mailbox here by that name
@@ -65,8 +59,6 @@ module.tx_rsmbouncemailprocessor {
                 48 = the address may be misspelled or may not exist
                 49 = the email account that you tried to reach does not exist
                 50 = the email address you entered couldn
-                51 = the following address failed
-                52 = the following addresses had permanent fatal errors
                 53 = unknown in relay recipient table
                 54 = unknown local part
                 55 = unknown or illegal alias
@@ -79,10 +71,7 @@ module.tx_rsmbouncemailprocessor {
                 62 = user is unknown
                 63 = user not listed
                 64 = user unknown
-                65 = we do not relay
-                66 = your message could not
                 67 = die Emailadresse hat sich geändert
-                68 = Delivery has failed to these recipients
                 69 = Bitte nutzen Sie ab sofort die Emailadresse
                 70 = Bitte beachten Sie unsere neue E-Mail-Adresse
             }
@@ -156,6 +145,7 @@ module.tx_rsmbouncemailprocessor {
             # Mesage size
             XSIZE{
                 01 = verkleinern Sie die Nachricht, beispielsweise durch Entfernen
+                02 = ihre nachricht wird nicht gesendet, da sie zu gro
             }
 
             # possible spam

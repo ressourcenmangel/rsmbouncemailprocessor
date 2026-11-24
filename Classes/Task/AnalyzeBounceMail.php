@@ -837,7 +837,7 @@ class AnalyzeBounceMail extends AbstractTask
             $cp['content'] = trim($c);
             $parts = explode('>:', $c, 2);
             $cp['reason_text'] = trim($parts[1]);
-            $cp['reason'] = $this->detectPostfixReason($c, $cp['reason_text']);
+            $cp['reason'] = $this->detectPostfixReason($cp['reason_text']);
 //
         } elseif (strstr($c, 'Your message cannot be delivered to the following recipients:')) {
             // whoever this is...
@@ -868,54 +868,86 @@ class AnalyzeBounceMail extends AbstractTask
             $cp['reason'] = $this->extractReason($cp['reason_text']);
         }
 
+        // the delivery status (RFC 3464) is more reliable than any text pattern
+        $dsnReason = $this->detectDsnReason($c);
+        if ($dsnReason !== null) {
+            $cp['reason'] = $dsnReason;
+        }
+
         return $cp;
     }
 
     /**
-     * Reads the SMTP code of a Postfix bounce from the delivery status only, never from the
-     * attached original mail (a "550" in a Message-ID, date or newsletter text is no error code).
+     * Reads the reason from the RFC 3464 delivery status fields "Status:" and "Diagnostic-Code: smtp;".
+     * Only the part before the attached original mail is read, a "Status:" header of the original
+     * mail or a "550" in its text must not decide.
      *
-     * 1. RFC 3464 fields "Status:" and "Diagnostic-Code: smtp;"
-     * 2. fallback: only the error line, which starts at the first ">:" and ends where the
-     *    original mail begins ("said: 550 ..."), at most 300 characters
-     *
-     * Enhanced status 5.7.x (policy, security, relay, spam) is never "user unknown".
-     *
-     * @return int 550, 551, 553 or -1 (unknown reason)
+     * @return int|null the reason, null if there is no (conclusive) delivery status
      */
-    private function detectPostfixReason(string $content, string $reasonText): int
+    private function detectDsnReason(string $content): ?int
     {
+        $dsn = preg_split('/Content-Type:\s*(?:message\/rfc822|text\/rfc822-headers)|\s-{2,}\s*(?:Original message|Below this line)/i', $content, 2)[0];
+
         $enhanced = null;
         $code = null;
-        if (preg_match('/\bStatus:\s*(5\.\d+\.\d+)\b/i', $content, $m)) {
+        if (preg_match('/\bStatus:\s*(5\.\d+\.\d+)\b/i', $dsn, $m)) {
             $enhanced = $m[1];
         }
-        if (preg_match('/\bDiagnostic-Code:\s*smtp;\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $content, $m)) {
+        if (preg_match('/\bDiagnostic-Code:\s*smtp;\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $dsn, $m)) {
             $code = (int)$m[1];
             $enhanced ??= $m[2] ?? null;
         }
 
-        // the error line without the attached original mail
-        $line = substr(preg_split('/\s-{2,}\s|Content-Description:|Reporting-MTA:/i', $reasonText, 2)[0], 0, 300);
-        if ($code === null) {
-            if (preg_match('/\bsaid:\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $line, $m)) {
-                $code = (int)$m[1];
-                $enhanced ??= $m[2] ?? null;
-            } elseif (preg_match('/\b(55[0-4])\b/', $line, $m)) {
-                $code = (int)$m[1];
-            }
-        }
+        return $this->mapSmtpReason($code, $enhanced);
+    }
 
-        // policy / security: not an invalid address
+    /**
+     * Maps an SMTP code and an enhanced status code to a reason.
+     *
+     * Enhanced status 5.7.x (policy, security, relay, spam) is never "user unknown".
+     * 553 also comes with relay or sender rejections, so it must not count as user unknown
+     * (that would remove the recipient). It is not in ERR_REASON and counts as unknown reason.
+     *
+     * @return int|null 550, 551, 553, -1 (unknown reason) or null if inconclusive
+     */
+    private function mapSmtpReason(?int $code, ?string $enhanced): ?int
+    {
         if ($enhanced !== null && str_starts_with($enhanced, '5.7.')) {
             return -1;
         }
-        // 553 also comes with relay or sender rejections, so it must not count as user unknown
-        // (that would remove the recipient). Not in ERR_REASON, counts as unknown reason.
         if (in_array($code, [550, 551, 553], true)) {
             return $code;
         }
-        return stripos($line, 'recipient storage full') !== false ? 551 : -1;
+        return match ($enhanced) {
+            '5.1.1', '5.1.2', '5.1.10' => 550,
+            '5.2.2' => 551,
+            default => null,
+        };
+    }
+
+    /**
+     * Reads the SMTP code of a Postfix bounce from the error line only, never from the attached
+     * original mail (a "550" in a Message-ID, date or newsletter text is no error code).
+     * The error line starts at the first ">:" and ends where the original mail begins
+     * ("said: 550 ..."), at most 300 characters. The delivery status fields are handled by
+     * detectDsnReason().
+     *
+     * @return int 550, 551, 553 or -1 (unknown reason)
+     */
+    private function detectPostfixReason(string $reasonText): int
+    {
+        $line = substr(preg_split('/\s-{2,}\s|Content-Description:|Reporting-MTA:/i', $reasonText, 2)[0], 0, 300);
+        $code = null;
+        $enhanced = null;
+        if (preg_match('/\bsaid:\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $line, $m)) {
+            $code = (int)$m[1];
+            $enhanced = $m[2] ?? null;
+        } elseif (preg_match('/\b(55[0-4])\b/', $line, $m)) {
+            $code = (int)$m[1];
+        }
+
+        return $this->mapSmtpReason($code, $enhanced)
+            ?? (stripos($line, 'recipient storage full') !== false ? 551 : -1);
     }
 
     /**

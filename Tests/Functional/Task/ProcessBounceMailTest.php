@@ -205,6 +205,34 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         self::assertSame(0, (int)$this->report()['removed']);
     }
 
+    /**
+     * Gmail rejects as spam with the same introduction as for unknown users ("could not be delivered
+     * to one or more of its recipients"), only the status 5.7.1 tells the difference.
+     */
+    #[Test]
+    public function gmailSpamRejectionDoesNotRemoveRecipient(): void
+    {
+        $this->bounceMail('gmail-spam', 3);
+        $this->process(true);
+
+        $report = $this->report();
+        self::assertSame(3, (int)$report['countunknownreason']);
+        self::assertSame(0, (int)$report['countuserunknown']);
+        self::assertSame(0, (int)$report['removed']);
+        self::assertSame([self::EMAIL, 'other@example.test'], $this->recipientList->getEmails());
+    }
+
+    #[Test]
+    public function gmailUserUnknownRemovesRecipientAfterTwoBounces(): void
+    {
+        $this->bounceMail('gmail-user-unknown', 2);
+        $this->process(true);
+
+        self::assertSame(2, (int)$this->report()['countuserunknown']);
+        self::assertGreaterThan(0, (int)$this->report()['removed']);
+        self::assertSame(['other@example.test'], $this->recipientList->getEmails());
+    }
+
     // ------------------------------------------------------------------ circuit breaker
 
     /**

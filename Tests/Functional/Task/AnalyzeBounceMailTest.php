@@ -109,6 +109,10 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'outlook user unknown' => ['outlook', '550'],
             'cannot be delivered, quota' => ['cannot-be-delivered', '551'],
             'unknown reason' => ['unknown-reason', '-1'],
+            'gmail spam rejection (5.7.1)' => ['gmail-spam', '-1'],
+            'gmail user unknown (5.1.1)' => ['gmail-user-unknown', '550'],
+            'exchange user unknown (5.1.10)' => ['exchange-user-unknown', '550'],
+            'generic failure text without delivery status' => ['generic-not-delivered-no-dsn', '-1'],
         ];
     }
 
