@@ -136,6 +136,17 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
         self::assertArrayNotHasKey($report['reason'], ERR_REASON);
     }
 
+    /**
+     * Relay errors are a misconfiguration on our side and say nothing about the address.
+     */
+    #[Test]
+    public function relayErrorIsNotDetectedAsUserUnknown(): void
+    {
+        $report = $this->task->analyseReturnError('Mail delivery failed: 5.7.1 unable to relay for user@example.test');
+
+        self::assertSame('-1', (string)$report['reason']);
+    }
+
     // ------------------------------------------------------------------ list unsubscribe
 
     public static function listUnsubscribeSubjectDataProvider(): array

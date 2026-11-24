@@ -52,7 +52,6 @@ class AnalyzeBounceMail extends AbstractTask
     public $conf;
     protected $arReasontext = [
         '550' => [
-            '5.7.1 unable to relay',
             '550 5.1.1 recipient',
         ],
         '551' => [

@@ -75,6 +75,21 @@ Check out the settings.deletelimits!
 The delete limits specify how often (per emal / address) a bounce-reason must occur so that the recipient is deleted from the tt_address table.
 Without changing these values, no addresses will be deleted!
 
+##### Upgrade: bounces of the sending side no longer delete recipients
+Spam, filter list and connection bounces (`countpossiblespam`, `countfilterlist`, `countconnectionrefused`) now default to 0 and no longer delete recipients.
+They point to the sending side (reputation, blacklisting, network) or to the policy of the receiving server, not to an invalid address.
+Relay errors ("5.7.1 unable to relay") are no longer detected as "user unknown" either, they are almost always a misconfiguration on our side.
+
+To restore the old limits, set them in your own TypoScript setup:
+
+```
+module.tx_rsmbouncemailprocessor.settings.deletelimits {
+    countconnectionrefused = 2
+    countfilterlist = 2
+    countpossiblespam = 2
+}
+```
+
 ### settings.deletetables
 Check out settings.deletetables if you want the tables mentioned there to be cleaned automatically.
 This is an optional feature.

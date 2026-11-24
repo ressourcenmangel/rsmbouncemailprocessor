@@ -17,7 +17,6 @@ module.tx_rsmbouncemailprocessor {
 
             # user unknown
             550 {
-                01 = 5.7.1 unable to relay
                 02 = 550 5.1.1 recipient
                 03 = 550 requested action not taken
                 04 = 550-5.1.1 the email account that you tried to reach does not exist
@@ -210,20 +209,28 @@ module.tx_rsmbouncemailprocessor {
             # user qutota exceeded (normally only temporarily)
             countquotaexceeded = 5
 
-            # server refused the connection
-            countconnectionrefused = 2
-
             # Error in the e-mail header
             countheadererror = 2
-
-            # user is on a filter list
-            countfilterlist = 2
 
             # message size to big
             countmessagesize = 5
 
-            # server detected the e-mail as spam
-            countpossiblespam = 2
+
+            //
+            // reasons that point to the sending side (reputation, network, policy of the
+            // receiving server) and not to an invalid address. Deleting would remove valid
+            // recipients when we are blacklisted or misconfigured, so they are 0 by default.
+            // Set a value > 0 to delete after n bounces anyway.
+            //
+
+            # server refused the connection (network or DNS problem)
+            countconnectionrefused = 0
+
+            # sender is on a filter list of the receiving server
+            countfilterlist = 0
+
+            # server detected the e-mail as spam (reputation of the sending server or the content)
+            countpossiblespam = 0
         }
 
         # Task/CleanTaskQueue

@@ -25,7 +25,8 @@ use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 /**
  * Counting of bounces per recipient (AnalyzeBounceMail) and removing recipients that reached
  * a delete limit (ProcessBounceMail). Delete limits come from the TypoScript of the extension:
- * countuserunknown = 2, out of office, unknown reason and no sender found never delete.
+ * countuserunknown = 2, out of office, unknown reason, no sender found as well as spam, filter list
+ * and connection problems (sending side, not the address) never delete.
  *
  * LineSeparatedRecipientList of cute_mailing cannot remove recipients ("Not implemented") and the
  * real connectors (tt_address, registeraddress) are not required for development. Therefore an
@@ -109,7 +110,9 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         return [
             'out of office (limit 0)' => ['XOUT', 3],
             'mailbox full (limit 5)' => ['551', 3],
-            'possible spam (limit 2)' => ['XSPAM', 1],
+            'possible spam (limit 0)' => ['XSPAM', 3],
+            'filter list (limit 0)' => ['XFILTER', 3],
+            'connection refused (limit 0)' => ['552', 3],
             'unknown reason (limit 0)' => ['-1', 3],
         ];
     }

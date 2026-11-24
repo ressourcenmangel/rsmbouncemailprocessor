@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - DDEV setup for local testing with TYPO3 13 and 14
 
+### Changed
+
+- Spam, filter list and connection bounces and relay errors no longer remove recipients (limits default to 0, relay errors are not "user unknown"), see README for the old behaviour
+
 ### Removed
 
 - IDE settings and README.pdf from the repository
