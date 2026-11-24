@@ -38,3 +38,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Removed
 
 - IDE settings and README.pdf from the repository
+- TypoScript constants `module.tx_rsmbouncemailprocessor.view.*RootPath` and the view paths in the setup, they pointed to the non existing directory `Resources/Private/Backend` (the templates are found in `Resources/Private/Templates`)

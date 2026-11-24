@@ -1,13 +1,6 @@
 # Module configuration
 module.tx_rsmbouncemailprocessor {
 
-    # TYPO3 View
-    view {
-        templateRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.templateRootPath}
-        partialRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.partialRootPath}
-        layoutRootPaths.0 = {$module.tx_rsmbouncemailprocessor.view.layoutRootPath}
-    }
-
     # Settings
     settings {
 
