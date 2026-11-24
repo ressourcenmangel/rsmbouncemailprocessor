@@ -8,6 +8,8 @@ use RSM\Rsmbouncemailprocessor\Controller\RecipientreportController;
 return [
     'web_rsmbouncemailprocessor' => [
         'parent' => 'web',
+        // identifier of version 2.x (registerModule() in ext_tables.php), migrates the access rights
+        'aliases' => ['web_RsmbouncemailprocessorRsmbouncemailprocessor'],
         'position' => ['after' => 'cutemailing'],
         'access' => 'user',
         'iconIdentifier' => 'apps-rsmbouncemailprocessor',

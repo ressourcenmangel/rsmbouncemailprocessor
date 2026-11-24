@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Processing task: recipient lists that cannot remove recipients (for example the cute_mailing line separated list) no longer let reports pile up, they are marked as removed with one warning per report and are not counted by the circuit breaker
 - Processing task: only the counter columns are accepted as keys of `settings.deletelimits` (other keys are ignored with a warning), limits are read as integers
 - Analyze and process task fail with a clear error when the TypoScript of the extension is not loaded (`settings.reasontext` or `settings.deletelimits` missing) instead of silently doing nothing, include the TypoScript on the root page of the site
+- Backend module: the module identifier of 2.x is registered as alias so the core upgrade wizard migrates the module access rights of backend users and groups
 
 ### Security
 

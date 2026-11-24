@@ -7,6 +7,7 @@ namespace RSM\Rsmbouncemailprocessor\Tests\Functional\Controller;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use TYPO3\CMS\Backend\Module\ModuleRegistry;
 use Psr\Http\Message\ResponseInterface;
 use RSM\Rsmbouncemailprocessor\Controller\BouncemailController;
 use RSM\Rsmbouncemailprocessor\Controller\RecipientreportController;
@@ -49,6 +50,22 @@ final class BackendModuleRenderTest extends FunctionalTestCase
             'bounce reports' => [BouncemailController::class, 'Bouncemail', 'list', 'newsletter with sendouts', 'bounces'],
             'recipient reports' => [RecipientreportController::class, 'Recipientreport', 'recipientlist', 'user1@example.test', 'recipients'],
         ];
+    }
+
+    /**
+     * The module identifier of 2.x (registerModule() in ext_tables.php). With the alias the core
+     * upgrade wizard migrates the access rights of backend users and groups to the new identifier.
+     */
+    #[Test]
+    public function moduleIdentifierOfVersion2IsAnAliasOfTheModule(): void
+    {
+        $registry = $this->get(ModuleRegistry::class);
+
+        self::assertTrue($registry->hasModule('web_RsmbouncemailprocessorRsmbouncemailprocessor'));
+        self::assertSame(
+            'web_rsmbouncemailprocessor',
+            $registry->getModule('web_RsmbouncemailprocessorRsmbouncemailprocessor')->getIdentifier()
+        );
     }
 
     #[Test]
