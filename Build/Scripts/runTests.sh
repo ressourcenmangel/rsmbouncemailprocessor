@@ -632,20 +632,22 @@ case ${TEST_SUITE} in
         SUITE_EXIT_CODE=$?
         ;;
     composerUpdateMax)
+        # The test container has no PHP imap extension (the mailbox is never opened in tests), so
+        # ext-imap from composer.json is ignored here.
         # `dumpautoload` removed due to error with missing `composer.lock` file on publishing public assets.
         # `composer update --with ...` is only a soft solver hint: if it can't be satisfied, composer
         # silently drops it instead of failing, so the requested TYPO3 version can silently not be the
         # one that actually gets installed. `composer require --no-install` performs real dependency
         # resolution and fails loudly (reverting composer.json) if the version genuinely can't be
         # satisfied, so it is used here to pin the constraint before the actual update/install.
-        COMMAND="cp composer.json /tmp/composer.json.bak && { composer config --unset platform.php && composer require --no-ansi --no-interaction --no-progress --no-install typo3/minimal:^${CORE_VERSION} && composer update --no-progress --no-interaction && composer show; }; EXIT=\$?; cp /tmp/composer.json.bak composer.json; exit \$EXIT"
+        COMMAND="cp composer.json /tmp/composer.json.bak && { composer config --unset platform.php && composer require --no-ansi --no-interaction --no-progress --no-install --ignore-platform-req=ext-imap typo3/minimal:^${CORE_VERSION} && composer update --no-progress --no-interaction --ignore-platform-req=ext-imap && composer show; }; EXIT=\$?; cp /tmp/composer.json.bak composer.json; exit \$EXIT"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name composer-install-max-${SUFFIX} -e COMPOSER_CACHE_DIR=.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;
     composerUpdateMin)
         # `dumpautoload` removed due to error with missing `composer.lock` file on publishing public assets.
         # See composerUpdateMax comment above for why `require --no-install` is used instead of `--with`.
-        COMMAND="cp composer.json /tmp/composer.json.bak && { composer config platform.php ${PHP_VERSION}.0 && composer require --no-ansi --no-interaction --no-progress --no-install --prefer-lowest typo3/minimal:^${CORE_VERSION} && composer update --prefer-lowest --no-progress --no-interaction && composer show; }; EXIT=\$?; cp /tmp/composer.json.bak composer.json; exit \$EXIT"
+        COMMAND="cp composer.json /tmp/composer.json.bak && { composer config platform.php ${PHP_VERSION}.0 && composer require --no-ansi --no-interaction --no-progress --no-install --prefer-lowest --ignore-platform-req=ext-imap typo3/minimal:^${CORE_VERSION} && composer update --prefer-lowest --no-progress --no-interaction --ignore-platform-req=ext-imap && composer show; }; EXIT=\$?; cp /tmp/composer.json.bak composer.json; exit \$EXIT"
         ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name composer-install-min-${SUFFIX} -e COMPOSER_CACHE_DIR=.cache/composer -e COMPOSER_ROOT_VERSION=${COMPOSER_ROOT_VERSION} ${IMAGE_PHP} /bin/sh -c "${COMMAND}"
         SUITE_EXIT_CODE=$?
         ;;

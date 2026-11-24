@@ -12,6 +12,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[CoversClass(RecipientreportRepository::class)]
 final class RecipientreportRepositoryTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['scheduler'];
+
     protected array $testExtensionsToLoad = [
         'undkonsorten/taskqueue',
         'undkonsorten/typo3-cute-mailing',
