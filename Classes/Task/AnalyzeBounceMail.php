@@ -374,14 +374,17 @@ class AnalyzeBounceMail extends AbstractTask
                 $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
                 if ($listunsubscribeHeader) {
                     $result = $this->processlistunsubscribeHeader($listunsubscribeHeader, $this->getSenderAddress($message));
+                    // rejected or failed unsubscribe requests are never deleted, not even with "delete always"
+                    $delete = $result;
 
                 } else {
                     $result = $this->processBounceMail($message);
+                    $delete = $result || $this->getDeletealways();
 
                 }
 
                 // delete the mail or set it to seen
-                if ($result || $this->getDeletealways()) {
+                if ($delete) {
                     $message->delete();
                 } else {
                     $message->setFlag('SEEN');
@@ -1333,8 +1336,16 @@ class AnalyzeBounceMail extends AbstractTask
                 try {
                     $recipientList->removeRecipientByEmail($recipient->getEmail());
                     $success = true;
-                } catch (\Exception) {
+                } catch (\Exception $exception) {
                     $logpid = null;
+                    // no addresses in the log (GDPR)
+                    $this->logger?->warning('Recipient could not be removed from the recipient list on list-unsubscribe', [
+                        'sendout' => $listunsubscribeHeader['sendout'],
+                        'rcptuid' => $listunsubscribeHeader['rcptuid'],
+                        'type' => $recipientList::class,
+                        'exception' => $exception::class,
+                        'code' => $exception->getCode(),
+                    ]);
                 }
 
                 $this->persistenceManager()->persistAll();

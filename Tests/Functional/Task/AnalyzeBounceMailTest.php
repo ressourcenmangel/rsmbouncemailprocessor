@@ -349,10 +349,66 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     public function listUnsubscribeIsNotSuccessfulWhenRecipientCannotBeRemoved(): void
     {
         $recipientList = $this->recipientListWith(5, 'a@example.test');
-        $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented'));
+        $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented for a@example.test', 1700000002));
         $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be removed'),
+            self::callback(static fn(array $context): bool => $context['rcptuid'] === 5
+                && $context['sendout'] === 7
+                && $context['type'] === $recipientList::class
+                && $context['exception'] === \RuntimeException::class
+                && $context['code'] === 1700000002
+                && !str_contains(json_encode($context), '@'))
+        );
+        $this->task->setLogger($logger);
 
         self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    public static function unsubscribeMailNeverDeletedDataProvider(): array
+    {
+        return [
+            'rejected, sender differs' => ['someone-else@example.test', false],
+            'removal fails' => ['a@example.test', true],
+        ];
+    }
+
+    /**
+     * Rejected or failed unsubscribe requests stay in the mailbox (as seen), even with "delete always".
+     */
+    #[Test]
+    #[DataProvider('unsubscribeMailNeverDeletedDataProvider')]
+    public function failedUnsubscribeMailIsNeverDeletedEvenWithDeletealways(string $from, bool $removalFails): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        if ($removalFails) {
+            $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented'));
+        }
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->task->setDeletealways(true);
+
+        $message = $this->createMock(Mailmessage::class);
+        $message->method('getSubject')->willReturn('action=listunsubscribe&rcptuid=5&rcptemail=a@example.test&sendout=7');
+        $message->method('getAddresses')->willReturn(['address' => $from]);
+        $message->expects(self::never())->method('delete');
+        $message->expects(self::once())->method('setFlag')->with('SEEN');
+
+        $this->call('processMessages', [$message]);
+    }
+
+    #[Test]
+    public function succeededUnsubscribeMailIsDeleted(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        $message = $this->createMock(Mailmessage::class);
+        $message->method('getSubject')->willReturn('action=listunsubscribe&rcptuid=5&rcptemail=a@example.test&sendout=7');
+        $message->method('getAddresses')->willReturn(['address' => 'a@example.test']);
+        $message->expects(self::once())->method('delete');
+
+        $this->call('processMessages', [$message]);
     }
 
     /**
