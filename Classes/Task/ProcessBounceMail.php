@@ -76,7 +76,9 @@ class ProcessBounceMail extends AbstractTask
         // first, query all newsletters grouped by recipient_list to get the recipient lists
         $queryBuilderReadNewsletter = $this->connectionPool()->getQueryBuilderForTable('tx_cutemailing_domain_model_newsletter');
         $queryBuilderReadNewsletter = $queryBuilderReadNewsletter
-            ->select('uid', 'recipient_list')
+            ->select('recipient_list')
+            // one newsletter per recipient list, MIN() keeps the query valid with ONLY_FULL_GROUP_BY and PostgreSQL
+            ->addSelectLiteral($queryBuilderReadNewsletter->expr()->min('uid', 'uid'))
             ->from('tx_cutemailing_domain_model_newsletter')
             ->where(
                 $queryBuilderReadNewsletter->expr()->eq('hidden', 0),
