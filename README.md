@@ -203,18 +203,19 @@ ddev install-all      # oder getrennt: ddev install-v13 / ddev install-v14 (jewe
 Lokale Test-Zugangsdaten (nur fuer dieses Setup, nicht produktiv verwenden):
 
 * TYPO3 Backend und Install Tool: `admin` / `Password:joh316`
-* Bounce-Postfach (GreenMail): Host `greenmail`, IMAP-Port `3143`, POP3-Port `3110`, SMTP-Port `3025`,
-  Benutzer `bounce`, Passwort `bounce` (Adresse `bounce@example.test`), ohne SSL
+* Bounce-Postfach (Dovecot 2.4, nur IMAP): Host `dovecot`, Port `143`, ohne SSL/TLS, Klartext-Login,
+  Benutzer `bounce`, Passwort `bounce` (per Umgebungsvariable `BOUNCE_USER` / `BOUNCE_PASSWORD` aenderbar).
+  Das Postfach liegt im RAM und ist nach einem `ddev restart` leer.
 
 Ausgehende TYPO3-Mails (SMTP `localhost:1025`) landen in Mailpit. Die Instanzen enthalten Seed-Daten:
 Ordner 2 (Newsletter, Empfaengerliste 1, Newsletter 1, Sendout 1) und Ordner 3 (tt_address-Empfaenger
 `recipient1@example.test` bis `recipient5@example.test`). Die Scheduler-Tasks "RSM analyze bounce mail" (uid 1,
-IMAP gegen GreenMail) und "RSM process bounce mail" (uid 2) sind angelegt.
+IMAP gegen Dovecot) und "RSM process bounce mail" (uid 2) sind angelegt.
 
 ### Bounce-Test
 
 ```
-ddev bounces --purge                                    # Postfach leeren
+ddev bounces --purge                                    # Postfach leeren (IMAP delete + expunge)
 ddev bounces --email=recipient1@example.test --times=2 550-user-unknown.eml
 ddev bounces --email=recipient2@example.test postfix-550.eml 551-mailbox-full.eml out-of-office.eml
 ddev bounces                                            # alle Fixtures aus Tests/Fixtures/Bounces einliefern
@@ -222,14 +223,14 @@ ddev exec "cd /var/www/html/v13 && vendor/bin/typo3 scheduler:run --task=1 -f"  
 ddev exec "cd /var/www/html/v13 && vendor/bin/typo3 scheduler:run --task=2 -f"   # Limits pruefen, Empfaenger entfernen
 ```
 
-`ddev bounces` ersetzt die Platzhalter der Fixtures (`--email`, `--sendout`, Standard 1, `--rcptuid`).
+`ddev bounces` liefert per IMAP APPEND ein und ersetzt die Platzhalter der Fixtures (`--email`, `--sendout`, Standard 1, `--rcptuid`).
 Nach 2x "550 user unknown" fuer `recipient1@example.test` entfernt Task 2 die Adresse aus der tt_address-Liste
 und markiert den Recipient-Report als `removed`. Fuer v14 `v13` durch `v14` ersetzen. Beide Instanzen lesen
 dasselbe Postfach, die Mails werden beim Auswerten verbraucht, daher vor dem Test in der zweiten Instanz neu einliefern.
 Ergebnis pruefen im Backend-Modul der Extension oder per
 `ddev mysql -e "select * from v13.tx_rsmbouncemailprocessor_domain_model_bouncereport"`.
 
-Hinweis: Die Task-Parameter von "RSM analyze bounce mail" im Backend: Server `greenmail`, Port `3143`,
+Hinweis: Die Task-Parameter von "RSM analyze bounce mail" im Backend: Server `dovecot`, Port `143`,
 Benutzer `bounce`, Passwort `bounce`, Service `imap`.
 
 ## TODOs

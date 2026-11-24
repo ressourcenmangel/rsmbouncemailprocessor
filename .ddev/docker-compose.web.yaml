@@ -8,14 +8,11 @@ services:
             - TYPO3_DB_PASSWORD=root
             - TYPO3_SETUP_ADMIN_EMAIL=admin@example.test
             - TYPO3_SETUP_ADMIN_PASSWORD=Password:joh316
-            # GreenMail als Bounce-Postfach
-            - BOUNCE_HOST=greenmail
-            - BOUNCE_SMTP_PORT=3025
-            - BOUNCE_IMAP_PORT=3143
-            - BOUNCE_POP3_PORT=3110
-            - BOUNCE_USER=bounce
-            - BOUNCE_PASSWORD=bounce
-            - BOUNCE_ADDRESS=bounce@example.test
+            # Dovecot als Bounce-Postfach (IMAP ohne TLS, Port 143), Default bounce / bounce
+            - BOUNCE_HOST=dovecot
+            - BOUNCE_IMAP_PORT=143
+            - BOUNCE_USER=${BOUNCE_USER:-bounce}
+            - BOUNCE_PASSWORD=${BOUNCE_PASSWORD:-bounce}
         volumes:
             # Repo-Root als Quelle fuer das Composer-Path-Repository (Symlink in den Instanzen)
             - type: bind

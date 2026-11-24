@@ -1,5 +1,5 @@
 <?php
-// Liefert Bounce-Fixtures (Tests/Fixtures/Bounces/*.eml) per SMTP ins GreenMail-Postfach.
+// Liefert Bounce-Fixtures (Tests/Fixtures/Bounces/*.eml) per IMAP APPEND ins Dovecot-Postfach.
 // Aufruf: php deliver-bounces.php [--purge] [--email=a@b.c] [--sendout=N] [--rcptuid=N] [--times=N] [datei.eml ...]
 // Platzhalter in den Fixtures: {{EMAIL}} {{MSGID}} {{RCPT_B64}} {{SENDOUT_UID}} {{RCPT_UID}}
 
@@ -16,12 +16,32 @@ foreach (array_slice($argv, 1) as $arg) {
     }
 }
 
+$host = getenv('BOUNCE_HOST') ?: 'dovecot';
+$port = (int)(getenv('BOUNCE_IMAP_PORT') ?: 143);
+$user = getenv('BOUNCE_USER') ?: 'bounce';
+$pass = getenv('BOUNCE_PASSWORD') ?: 'bounce';
+// IMAP ohne TLS (nur lokales DDEV-Netz)
+$mailbox = sprintf('{%s:%d/imap/notls}INBOX', $host, $port);
+
+$imap = @imap_open($mailbox, $user, $pass, 0, 1);
+if (!$imap) {
+    fwrite(STDERR, "Dovecot nicht erreichbar ($host:$port): " . imap_last_error() . "\n");
+    exit(1);
+}
+// Hinweis "insecure server advertised AUTH=PLAIN" (kein TLS, bewusst) nicht als Notice ausgeben
+imap_errors();
+imap_alerts();
+
 if ($purge) {
-    // GreenMail-API: setzt alle Postfaecher zurueck (Benutzer bleiben bestehen)
-    $api = 'http://' . (getenv('BOUNCE_HOST') ?: 'greenmail') . ':8080/api/service/reset';
-    $ctx = stream_context_create(['http' => ['method' => 'POST', 'content' => '', 'ignore_errors' => true]]);
-    echo 'Postfach geleert: ' . trim((string)@file_get_contents($api, false, $ctx)) . "\n";
+    // alle Mails loeschen und expungen
+    $count = imap_num_msg($imap);
+    if ($count > 0) {
+        imap_delete($imap, '1:*');
+        imap_expunge($imap);
+    }
+    echo "Postfach geleert: $count Mail(s) entfernt\n";
     if ($files === []) {
+        imap_close($imap);
         exit(0);
     }
 }
@@ -36,29 +56,7 @@ if ($files === []) {
     }
 }
 
-$host = getenv('BOUNCE_HOST') ?: 'greenmail';
-$port = (int)(getenv('BOUNCE_SMTP_PORT') ?: 3025);
-$rcpt = getenv('BOUNCE_ADDRESS') ?: 'bounce@example.test';
-
-function smtpExpect($fp, string $code): void
-{
-    do {
-        $line = fgets($fp, 1024);
-        if ($line === false) {
-            throw new RuntimeException('SMTP: Verbindung verloren');
-        }
-    } while (isset($line[3]) && $line[3] === '-');
-    if (!str_starts_with($line, $code)) {
-        throw new RuntimeException('SMTP: erwartet ' . $code . ', erhalten ' . trim($line));
-    }
-}
-
-$fp = @stream_socket_client("tcp://$host:$port", $errno, $errstr, 10);
-if (!$fp) {
-    fwrite(STDERR, "GreenMail nicht erreichbar ($host:$port): $errstr\n");
-    exit(1);
-}
-smtpExpect($fp, '220');
+$rcpt = getenv('BOUNCE_ADDRESS') ?: $user;
 
 $sent = 0;
 foreach ($paths as $path) {
@@ -74,24 +72,15 @@ foreach ($paths as $path) {
             '{{SENDOUT_UID}}' => $opts['sendout'],
             '{{RCPT_UID}}' => $opts['rcptuid'],
         ]);
-        // CRLF normalisieren und Punkte am Zeilenanfang verdoppeln (SMTP Dot-Stuffing)
+        // CRLF normalisieren, dann per APPEND in die INBOX legen
         $mail = preg_replace('/\r?\n/', "\r\n", $mail);
-        $mail = preg_replace('/^\./m', '..', $mail);
-
-        fwrite($fp, "HELO ddev\r\n");
-        smtpExpect($fp, '250');
-        fwrite($fp, "MAIL FROM:<mailer-daemon@mx.example.test>\r\n");
-        smtpExpect($fp, '250');
-        fwrite($fp, "RCPT TO:<$rcpt>\r\n");
-        smtpExpect($fp, '250');
-        fwrite($fp, "DATA\r\n");
-        smtpExpect($fp, '354');
-        fwrite($fp, rtrim($mail, "\r\n") . "\r\n.\r\n");
-        smtpExpect($fp, '250');
+        if (!imap_append($imap, $mailbox, $mail)) {
+            fwrite(STDERR, 'IMAP APPEND fehlgeschlagen: ' . imap_last_error() . "\n");
+            exit(1);
+        }
         $sent++;
     }
     echo 'zugestellt: ' . basename($path) . "\n";
 }
-fwrite($fp, "QUIT\r\n");
-fclose($fp);
+imap_close($imap);
 echo "$sent Mail(s) an $rcpt eingeliefert (Empfaenger-Platzhalter: {$opts['email']}, Sendout: {$opts['sendout']})\n";

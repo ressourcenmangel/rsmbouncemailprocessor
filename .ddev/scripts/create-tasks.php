@@ -44,14 +44,14 @@ $connection->truncate('tx_scheduler_task');
 $repository = $container->get(SchedulerTaskRepository::class);
 
 $analyze = new AnalyzeBounceMail();
-$analyze->setServer(getenv('BOUNCE_HOST') ?: 'greenmail');
-$analyze->setPort((int)(getenv('BOUNCE_IMAP_PORT') ?: 3143));
+$analyze->setServer(getenv('BOUNCE_HOST') ?: 'dovecot');
+$analyze->setPort((int)(getenv('BOUNCE_IMAP_PORT') ?: 143));
 $analyze->setUser(getenv('BOUNCE_USER') ?: 'bounce');
 $analyze->setPassword(getenv('BOUNCE_PASSWORD') ?: 'bounce');
 $analyze->setService('imap');
 $analyze->setMaxProcessed(100);
 $analyze->setDeletealways(false);
-$analyze->setDescription('Bounce-Postfach (GreenMail) auswerten');
+$analyze->setDescription('Bounce-Postfach (Dovecot) auswerten');
 $analyze->setExecution(recurring());
 
 $process = new ProcessBounceMail();

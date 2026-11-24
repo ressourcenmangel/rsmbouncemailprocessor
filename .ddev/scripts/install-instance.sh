@@ -66,7 +66,7 @@ cat >config/system/additional.php <<PHP
 PHP
 
 vendor/bin/typo3 extension:setup
-# Scheduler-Tasks (AnalyzeBounceMail gegen GreenMail, ProcessBounceMail) und Seed-Daten
+# Scheduler-Tasks (AnalyzeBounceMail gegen Dovecot, ProcessBounceMail) und Seed-Daten
 php /mnt/ddev_config/scripts/create-tasks.php
 /mnt/ddev_config/scripts/seed-instance.sh "${MAJOR}"
 vendor/bin/typo3 cache:flush
