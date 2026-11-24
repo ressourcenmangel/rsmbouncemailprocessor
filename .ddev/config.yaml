@@ -1,0 +1,18 @@
+name: rsmbouncemailprocessor
+type: php
+docroot: ""
+no_project_mount: true
+php_version: "8.3"
+composer_version: "2"
+webserver_type: apache-fpm
+router_http_port: "80"
+router_https_port: "443"
+xdebug_enabled: false
+additional_hostnames:
+    - v13.rsmbouncemailprocessor
+    - v14.rsmbouncemailprocessor
+use_dns_when_possible: true
+performance_mode: none
+# ext-imap wird von AnalyzeBounceMail benoetigt
+webimage_extra_packages:
+    - php${DDEV_PHP_VERSION}-imap

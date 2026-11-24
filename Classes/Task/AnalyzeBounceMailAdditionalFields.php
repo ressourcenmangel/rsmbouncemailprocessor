@@ -18,6 +18,7 @@ use RSM\Rsmbouncemailprocessor\Utility\Mailserver;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Scheduler\AbstractAdditionalFieldProvider;
+use TYPO3\CMS\Scheduler\Domain\Repository\SchedulerTaskRepository;
 use TYPO3\CMS\Scheduler\Controller\SchedulerModuleController;
 use TYPO3\CMS\Scheduler\Task\AbstractTask;
 
@@ -50,11 +51,12 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
      */
     public function getAdditionalFields(array &$taskInfo, $task, SchedulerModuleController $schedulerModule)
     {
-        $serverHTML = '<input type="text" name="tx_scheduler[bounceServer]" value="' . ($task ? $task->getServer() : '') . '"/>';
-        $portHTML = '<input type="text" name="tx_scheduler[bouncePort]" value="' . ($task ? $task->getPort() : '') . '"/>';
-        $userHTML = '<input type="text" name="tx_scheduler[bounceUser]" value="' . ($task ? $task->getUser() : '') . '"/>';
-        $passwordHTML = '<input type="password" name="tx_scheduler[bouncePassword]" value="' . ($task ? $task->getPassword() : '') . '"/>';
-        $maxProcessedHTML = '<input type="text" name="tx_scheduler[bounceProcessed]" value="' . ($task ? $task->getMaxProcessed() : '') . '"/>';
+        // values are escaped for the attribute, the password is never sent back to the browser
+        $serverHTML = '<input type="text" name="tx_scheduler[bounceServer]" value="' . $this->escape($task ? $task->getServer() : '') . '"/>';
+        $portHTML = '<input type="text" name="tx_scheduler[bouncePort]" value="' . $this->escape($task ? $task->getPort() : '') . '"/>';
+        $userHTML = '<input type="text" name="tx_scheduler[bounceUser]" value="' . $this->escape($task ? $task->getUser() : '') . '"/>';
+        $passwordHTML = '<input type="password" name="tx_scheduler[bouncePassword]" value="" autocomplete="new-password"/>';
+        $maxProcessedHTML = '<input type="text" name="tx_scheduler[bounceProcessed]" value="' . $this->escape($task ? $task->getMaxProcessed() : '') . '"/>';
 
         if($task){
             $serviceHTML = '<select name="tx_scheduler[bounceService]" id="bounceService">' .
@@ -100,7 +102,10 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
         $task->setServer($submittedData['bounceServer']);
         $task->setPort((int)$submittedData['bouncePort']);
         $task->setUser($submittedData['bounceUser']);
-        $task->setPassword($submittedData['bouncePassword']);
+        // the form never shows the stored password, an empty input keeps it
+        if (($submittedData['bouncePassword'] ?? '') !== '') {
+            $task->setPassword($submittedData['bouncePassword']);
+        }
         $task->setService($submittedData['bounceService']);
         $task->setMaxProcessed((int)$submittedData['bounceProcessed']);
         $task->setDeletealways((bool)($submittedData['bounceDeletealways'] ?? false));
@@ -124,6 +129,18 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
             return false;
         }
 
+        // an empty password input means "keep the stored password" (see saveAdditionalFields)
+        if (($submittedData['bouncePassword'] ?? '') === '' && (int)($submittedData['uid'] ?? 0) > 0) {
+            try {
+                $storedTask = GeneralUtility::makeInstance(SchedulerTaskRepository::class)->findByUid((int)$submittedData['uid']);
+                if ($storedTask instanceof AnalyzeBounceMail) {
+                    $submittedData['bouncePassword'] = $storedTask->getPassword();
+                }
+            } catch (\Throwable) {
+                // the connection test fails without password
+            }
+        }
+
         // try connect to mail server
         /** @var Mailserver $mailServer */
         $mailServer = GeneralUtility::makeInstance(Mailserver::class);
@@ -144,6 +161,11 @@ class AnalyzeBounceMailAdditionalFields extends AbstractAdditionalFieldProvider
         }
 
         return true;
+    }
+
+    private function escape(string|int $value): string
+    {
+        return htmlspecialchars((string)$value, ENT_QUOTES);
     }
 
     protected function createAdditionalFields($fieldName, $fieldHTML)

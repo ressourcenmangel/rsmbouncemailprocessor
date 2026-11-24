@@ -1,0 +1,6 @@
+#!/bin/bash
+## Description: TYPO3 13 und 14 installieren
+## Usage: install-all
+set -e
+/mnt/ddev_config/scripts/install-instance.sh 13
+/mnt/ddev_config/scripts/install-instance.sh 14

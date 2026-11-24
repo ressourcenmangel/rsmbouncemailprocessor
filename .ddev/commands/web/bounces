@@ -1,0 +1,5 @@
+#!/bin/bash
+## Description: Bounce-Fixtures (Tests/Fixtures/Bounces) ins Dovecot-Postfach (IMAP APPEND) einliefern
+## Usage: bounces [--purge] [--email=a@b.c] [--from=a@b.c] [--sendout=N] [--rcptuid=N] [--times=N] [datei.eml ...]
+## Example: ddev bounces --email=recipient1@example.test --times=2 550-user-unknown.eml
+exec php /mnt/ddev_config/scripts/deliver-bounces.php "$@"

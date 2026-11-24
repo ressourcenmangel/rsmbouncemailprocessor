@@ -1,0 +1,25 @@
+#ddev-silent-no-warn
+# Bounce-Postfach fuer lokale Tests: Dovecot (IMAP, Port 143, ohne TLS, nur im internen DDEV-Netz)
+# Konfiguration: .ddev/dovecot/dovecot.conf. Login aus BOUNCE_USER / BOUNCE_PASSWORD (Default bounce / bounce,
+# nur lokal). Das Image hat keine Shell, daher entsteht die Benutzerdatei als Compose-Config mit Inline-Inhalt.
+services:
+    dovecot:
+        container_name: ddev-${DDEV_SITENAME}-dovecot
+        image: dovecot/dovecot:2.4.5
+        labels:
+            com.ddev.site-name: ${DDEV_SITENAME}
+            com.ddev.approot: ${DDEV_APPROOT}
+        # Maildir im RAM, gehoert vmail (uid 1000), beim Neustart des Containers leer
+        tmpfs:
+            - /srv/mail:uid=1000,gid=1000,mode=755
+        volumes:
+            - ./dovecot/dovecot.conf:/etc/dovecot/dovecot.conf:ro
+        configs:
+            - source: dovecot_users
+              target: /etc/dovecot/users
+              mode: 0444
+        expose:
+            - "143"
+configs:
+    dovecot_users:
+        content: "${BOUNCE_USER:-bounce}:{PLAIN}${BOUNCE_PASSWORD:-bounce}\n"

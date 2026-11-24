@@ -13,6 +13,8 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 #[CoversNothing]
 final class BackendTemplatesFluidSyntaxTest extends FunctionalTestCase
 {
+    protected array $coreExtensionsToLoad = ['scheduler'];
+
     protected array $testExtensionsToLoad = [
         'undkonsorten/taskqueue',
         'undkonsorten/typo3-cute-mailing',

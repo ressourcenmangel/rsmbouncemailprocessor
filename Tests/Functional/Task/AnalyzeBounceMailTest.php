@@ -7,14 +7,19 @@ namespace RSM\Rsmbouncemailprocessor\Tests\Functional\Task;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LoggerInterface;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
+use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 use Undkonsorten\CuteMailing\Domain\Model\RecipientList;
 use Undkonsorten\CuteMailing\Domain\Model\SendOut;
+use Undkonsorten\CuteMailing\Domain\Model\SimpleRecipient;
 use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 
 #[CoversClass(AnalyzeBounceMail::class)]
@@ -100,6 +105,8 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'out of office' => ['out-of-office', 'XOUT'],
             'spam' => ['spam', 'XSPAM'],
             'postfix user unknown' => ['postfix-550', '550'],
+            'postfix mailbox full, 550 only in the original mail' => ['postfix-mailbox-full-550-in-original', '551'],
+            'postfix relay denied (5.7.1)' => ['postfix-relay-denied', '-1'],
             'qmail user unknown' => ['qmail-550', '550'],
             'filter list' => ['xfilter-blocked', 'XFILTER'],
             'message size' => ['xsize-too-large', 'XSIZE'],
@@ -107,8 +114,10 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
             'outlook user unknown' => ['outlook', '550'],
             'cannot be delivered, quota' => ['cannot-be-delivered', '551'],
             'unknown reason' => ['unknown-reason', '-1'],
-            // Postfix 553 returned a reason that does not exist in ERR_REASON
-            'postfix 553 mailbox name not allowed' => ['postfix-553', '550'],
+            'gmail spam rejection (5.7.1)' => ['gmail-spam', '-1'],
+            'gmail user unknown (5.1.1)' => ['gmail-user-unknown', '550'],
+            'exchange user unknown (5.1.10)' => ['exchange-user-unknown', '550'],
+            'generic failure text without delivery status' => ['generic-not-delivered-no-dsn', '-1'],
         ];
     }
 
@@ -122,6 +131,166 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
 
         self::assertSame($expectedReason, (string)$report['reason']);
         self::assertArrayHasKey($report['reason'], ERR_REASON);
+    }
+
+    /**
+     * 553 is not a reason of its own, it is not allowed to end up as "user unknown". The enhanced
+     * status 5.1.3 of the fixture decides (unknown reason), a bare 553 stays 553.
+     */
+    #[Test]
+    public function postfix553IsNotDetectedAsUserUnknown(): void
+    {
+        [, $body] = $this->bounce('postfix-553');
+
+        $report = $this->task->analyseReturnError($this->flatten($body));
+
+        self::assertSame('-1', (string)$report['reason']);
+        self::assertSame('553', (string)$this->task->analyseReturnError('The Postfix program <a@example.test>: host x said: 553 rejected')['reason']);
+    }
+
+    /**
+     * Relay errors are a misconfiguration on our side and say nothing about the address.
+     */
+    #[Test]
+    public function relayErrorIsNotDetectedAsUserUnknown(): void
+    {
+        $report = $this->task->analyseReturnError('Mail delivery failed: 5.7.1 unable to relay for user@example.test');
+
+        self::assertSame('-1', (string)$report['reason']);
+    }
+
+    public static function postfixDeliveryStatusDataProvider(): array
+    {
+        return [
+            'Diagnostic-Code 550 is user unknown' => ['Status: 5.1.1 Diagnostic-Code: smtp; 550 5.1.1 User unknown', '550'],
+            'Status 5.7.x is never user unknown' => ['Status: 5.7.1 Diagnostic-Code: smtp; 550 5.7.1 Rejected by policy', '-1'],
+            'Diagnostic-Code wins over a number in the original mail' => ['Status: 5.2.2 Diagnostic-Code: smtp; 551 mailbox full --- Original --- Message-ID: <550@x>', '551'],
+            'Status 5.7.x in the error line' => ['said: 550 5.7.1 blocked by policy --- Original --- X: 550', '-1'],
+            'enhanced 5.2.2 wins over 550' => ['said: 550 5.2.2 mailbox full', '551'],
+            'enhanced 5.1.8 (sender rejected) is not user unknown' => ['said: 550 5.1.8 sender address rejected', '-1'],
+            'enhanced 5.4.x is not user unknown' => ['said: 550 5.4.1 recipient address rejected: access denied', '-1'],
+            'generic Status 5.0.0, the more specific 5.7.1 of the Diagnostic-Code wins' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.7.1 blocked by policy', '-1'],
+            'generic Status 5.0.0, the more specific 5.1.1 of the Diagnostic-Code wins' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.1.1 User unknown', '550'],
+            'only 553 without enhanced status' => ['said: 553 relay or sender problem', '553'],
+            'only 551 without enhanced status' => ['said: 551 mailbox full', '551'],
+            'only 550 without enhanced status is inconclusive' => ['said: 550 rejected', '-1'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('postfixDeliveryStatusDataProvider')]
+    public function postfixReasonIsReadFromTheDeliveryStatus(string $text, string $expectedReason): void
+    {
+        $report = $this->task->analyseReturnError('The Postfix program <user@example.test>: ' . $text);
+
+        self::assertSame($expectedReason, (string)$report['reason']);
+    }
+
+    public static function deliveryStatusDataProvider(): array
+    {
+        return [
+            'enhanced 5.2.2 wins over 550' => ['Diagnostic-Code: smtp; 550 5.2.2 mailbox full', '551'],
+            'enhanced 5.1.8 is not user unknown' => ['Diagnostic-Code: smtp; 550 5.1.8 sender address rejected', '-1'],
+            'generic Status 5.0.0 and specific Diagnostic-Code 5.7.1' => ['Status: 5.0.0 Diagnostic-Code: smtp; 550 5.7.1 blocked', '-1'],
+            'enhanced 5.5.0 is unknown' => ['Status: 5.5.0 Diagnostic-Code: smtp; 550 whatever', '-1'],
+            'only 550 is inconclusive, the text patterns decide' => ['Diagnostic-Code: smtp; 550 rejected', '-1'],
+            'only 553' => ['Diagnostic-Code: smtp; 553 rejected', '553'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('deliveryStatusDataProvider')]
+    public function reasonIsReadFromTheDeliveryStatusOfAnyMta(string $text, string $expectedReason): void
+    {
+        $report = $this->task->analyseReturnError('Delivery failure. ' . $text);
+
+        self::assertSame($expectedReason, (string)$report['reason']);
+    }
+
+    // ------------------------------------------------------------------ mail handling
+
+    /**
+     * Every part of a multipart mail must be in the text exactly once (the buffer was handed to
+     * every part and the result appended again, so the text multiplied with each part).
+     */
+    #[Test]
+    public function imapGetmsgContainsEveryPartExactlyOnce(): void
+    {
+        $part = static fn(array $subParts = []): object => (object)(['type' => 0, 'encoding' => 0] + ($subParts ? ['parts' => $subParts] : []));
+        $structure = (object)['parts' => [$part([$part(), $part()]), $part()]];
+        $texts = ['1' => 'AAA', '1.1' => 'BBB', '1.2' => 'CCC', '2' => 'DDD'];
+
+        $task = new class ($structure, $texts) extends AnalyzeBounceMail {
+            public function __construct(private readonly object $structure, private readonly array $texts)
+            {
+                parent::__construct();
+            }
+
+            protected function imapFetchStructure(int $mid): object|false
+            {
+                return $this->structure;
+            }
+
+            protected function imapFetchPart(int $mid, string|int $partno): string|false
+            {
+                return $this->texts[(string)$partno];
+            }
+        };
+
+        $message = $task->imapGetmsg(1);
+
+        foreach ($texts as $text) {
+            self::assertSame(1, substr_count($message, $text), $text);
+        }
+        self::assertSame("AAA\n\nBBB\n\nCCC\n\nDDD\n\n", $message);
+    }
+
+    /**
+     * A mail whose processing throws is marked as seen (never deleted), the run goes on.
+     */
+    #[Test]
+    public function failingMailDoesNotStopTheRun(): void
+    {
+        $bad = $this->createMock(Mailmessage::class);
+        $bad->method('getUid')->willReturn(11);
+        $bad->method('getSubject')->willThrowException(new \RuntimeException('imap broke for user@example.test', 1700000001));
+        $bad->expects(self::never())->method('delete');
+        $bad->expects(self::once())->method('setFlag')->with('SEEN');
+
+        $good = $this->createMock(Mailmessage::class);
+        $good->method('getUid')->willReturn(12);
+        $good->method('getSubject')->willReturn('Undelivered Mail Returned to Sender');
+        $good->method('getAddresses')->willReturn(['address' => 'user@example.test']);
+        $good->expects(self::once())->method('delete');
+        $good->expects(self::never())->method('setFlag');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be processed'),
+            self::callback(static fn(array $context): bool => $context['uid'] === 11
+                && $context['exception'] === \RuntimeException::class
+                && $context['code'] === 1700000001
+                && !str_contains(json_encode($context), '@'))
+        );
+
+        $task = new class () extends AnalyzeBounceMail {
+            public function getRawHeaders($uid)
+            {
+                return "X-TYPO3RCPT: " . base64_encode('user@example.test') . "\n";
+            }
+
+            public function imapGetmsg(int $mid): string
+            {
+                return 'The Postfix program <user@example.test>: said: 550 5.1.1 unknown';
+            }
+        };
+        $task->setLogger($logger);
+        $task->initClass();
+        $this->task = $task;
+
+        $this->call('processMessages', [$bad, $good]);
+
+        self::assertCount(1, $this->getProperty('arBounces'));
     }
 
     // ------------------------------------------------------------------ list unsubscribe
@@ -153,13 +322,13 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     #[Test]
     public function listUnsubscribeRemovesRecipientAndReportsSuccess(): void
     {
-        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
         $recipientList->method('getRecipientListPage')->willReturn(95);
         $recipientList->expects(self::once())->method('removeRecipientByEmail')->with('a@example.test');
         $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
         $this->enableDeleteLog();
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test', 'sendout' => 7]);
+        $result = $this->unsubscribe('a@example.test');
 
         self::assertTrue($result, 'the mail has to be deleted after a successful unsubscribe');
         $logs = $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog');
@@ -169,15 +338,79 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     }
 
     #[Test]
-    public function listUnsubscribeIsNotSuccessfulWhenRecipientCannotBeRemoved(): void
+    public function listUnsubscribeComparesAddressesNormalized(): void
     {
-        $recipientList = $this->createStub(RecipientList::class);
-        $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented'));
+        $recipientList = $this->recipientListWith(5, 'A@Example.test');
+        $recipientList->expects(self::once())->method('removeRecipientByEmail')->with('A@Example.test');
         $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test', 'sendout' => 7]);
+        self::assertTrue($this->unsubscribe(' a@example.TEST ', 'a@example.test'));
+    }
 
-        self::assertFalse($result);
+    #[Test]
+    public function listUnsubscribeIsNotSuccessfulWhenRecipientCannotBeRemoved(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented for a@example.test', 1700000002));
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be removed'),
+            self::callback(static fn(array $context): bool => $context['rcptuid'] === 5
+                && $context['sendout'] === 7
+                && $context['type'] === $recipientList::class
+                && $context['exception'] === \RuntimeException::class
+                && $context['code'] === 1700000002
+                && !str_contains(json_encode($context), '@'))
+        );
+        $this->task->setLogger($logger);
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    public static function unsubscribeMailNeverDeletedDataProvider(): array
+    {
+        return [
+            'rejected, sender differs' => ['someone-else@example.test', false],
+            'removal fails' => ['a@example.test', true],
+        ];
+    }
+
+    /**
+     * Rejected or failed unsubscribe requests stay in the mailbox (as seen), even with "delete always".
+     */
+    #[Test]
+    #[DataProvider('unsubscribeMailNeverDeletedDataProvider')]
+    public function failedUnsubscribeMailIsNeverDeletedEvenWithDeletealways(string $from, bool $removalFails): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        if ($removalFails) {
+            $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented'));
+        }
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->task->setDeletealways(true);
+
+        $message = $this->createMock(Mailmessage::class);
+        $message->method('getSubject')->willReturn('action=listunsubscribe&rcptuid=5&rcptemail=a@example.test&sendout=7');
+        $message->method('getAddresses')->willReturn(['address' => $from]);
+        $message->expects(self::never())->method('delete');
+        $message->expects(self::once())->method('setFlag')->with('SEEN');
+
+        $this->call('processMessages', [$message]);
+    }
+
+    #[Test]
+    public function succeededUnsubscribeMailIsDeleted(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        $message = $this->createMock(Mailmessage::class);
+        $message->method('getSubject')->willReturn('action=listunsubscribe&rcptuid=5&rcptemail=a@example.test&sendout=7');
+        $message->method('getAddresses')->willReturn(['address' => 'a@example.test']);
+        $message->expects(self::once())->method('delete');
+
+        $this->call('processMessages', [$message]);
     }
 
     /**
@@ -188,9 +421,97 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     {
         $this->task = $this->taskWithSendout(null);
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test']);
+        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test'], 'a@example.test');
 
         self::assertFalse($result);
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenSenderDiffers(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->enableDeleteLog();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::callback(static fn(string $message): bool => !str_contains($message, '@')),
+            self::callback(static fn(array $context): bool => !str_contains(json_encode($context), '@') && ($context['rcptuid'] ?? null) === 5 && ($context['sendout'] ?? null) === 7)
+        );
+        $this->task->setLogger($logger);
+
+        self::assertFalse($this->unsubscribe('a@example.test', 'someone-else@example.test'));
+        self::assertSame([], $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenSenderIsMissing(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test', ''));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenUidBelongsToAnotherAddress(): void
+    {
+        // uid 5 is b@example.test, the mail claims it is a@example.test (and is sent from there)
+        $recipientList = $this->recipientListWith(5, 'b@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->enableDeleteLog();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::callback(static fn(string $message): bool => !str_contains($message, '@')),
+            self::callback(static fn(array $context): bool => !str_contains(json_encode($context), '@'))
+        );
+        $this->task->setLogger($logger);
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+        self::assertSame([], $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenUidIsUnknown(): void
+    {
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willReturn(null);
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenTheUidLookupFails(): void
+    {
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willThrowException(new \RuntimeException('not supported'));
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    public static function senderAddressDataProvider(): array
+    {
+        return [
+            'plain' => [['address' => 'a@example.test', 'name' => 'A'], 'a@example.test'],
+            'normalized' => [['address' => ' A@Example.TEST '], 'a@example.test'],
+            'no from header' => [false, ''],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('senderAddressDataProvider')]
+    public function senderAddressIsReadNormalized(array|false $from, string $expected): void
+    {
+        $message = $this->createStub(\RSM\Rsmbouncemailprocessor\Utility\Mailmessage::class);
+        $message->method('getAddresses')->willReturn($from);
+
+        self::assertSame($expected, $this->call('getSenderAddress', $message));
     }
 
     // ------------------------------------------------------------------ reports
@@ -303,6 +624,23 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
 
     // ------------------------------------------------------------------ execute
 
+    /**
+     * Without the TypoScript of the extension no bounce reason could be detected. The task fails
+     * with a message that tells what to do.
+     */
+    #[Test]
+    public function taskFailsWithAClearMessageWithoutConfiguration(): void
+    {
+        $configurationManager = $this->createStub(ConfigurationManager::class);
+        $configurationManager->method('getConfiguration')->willReturn([]);
+        GeneralUtility::setSingletonInstance(ConfigurationManager::class, $configurationManager);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('first root page');
+
+        $this->task->initClass();
+    }
+
     #[Test]
     public function executeFailsWithoutExceptionWhenMailboxIsNotReachable(): void
     {
@@ -363,6 +701,11 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
         $property->setValue($this->task, $value);
     }
 
+    private function getProperty(string $name): mixed
+    {
+        return (new \ReflectionProperty(AnalyzeBounceMail::class, $name))->getValue($this->task);
+    }
+
     private function call(string $method, mixed ...$arguments): mixed
     {
         return (new \ReflectionMethod(AnalyzeBounceMail::class, $method))->invoke($this->task, ...$arguments);
@@ -371,6 +714,23 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     private function enableDeleteLog(): void
     {
         $this->setProperty('conf', ['settings.' => ['deletelog.' => ['enabled' => '1', 'pid' => '94']]]);
+    }
+
+    /**
+     * Executes a list-unsubscribe request for sendout 7, recipient uid 5 and the given address.
+     */
+    private function unsubscribe(string $rcptemail, ?string $sender = null): bool
+    {
+        return $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => $rcptemail, 'sendout' => 7], $sender ?? $rcptemail);
+    }
+
+    private function recipientListWith(int $uid, string $email): RecipientList&\PHPUnit\Framework\MockObject\MockObject
+    {
+        $recipient = new SimpleRecipient();
+        $recipient->setUid($uid)->setEmail($email);
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willReturnCallback(static fn(int $requested): ?SimpleRecipient => $requested === $uid ? $recipient : null);
+        return $recipientList;
     }
 
     private function sendoutWithRecipientList(RecipientList $recipientList): SendOut

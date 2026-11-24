@@ -18,3 +18,9 @@ nbproject
 .Build
 .cache
 /var
+composer.lock
+/vendor
+.DS_Store
+.phpunit.result.cache
+# Personal agent preferences
+CLAUDE.local.md

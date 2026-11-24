@@ -15,12 +15,6 @@ if (!defined('TYPO3')) {
 call_user_func(function () {
     ExtensionManagementUtility::addTypoScript(
         'rsmbouncemailprocessor',
-        'constants',
-        "@import 'EXT:rsmbouncemailprocessor/Configuration/TypoScript/constants.typoscript'"
-    );
-
-    ExtensionManagementUtility::addTypoScript(
-        'rsmbouncemailprocessor',
         'setup',
         "@import 'EXT:rsmbouncemailprocessor/Configuration/TypoScript/setup.typoscript'"
     );

@@ -1,0 +1,4 @@
+#!/bin/bash
+## Description: TYPO3 13 neu installieren (cute_mailing, scheduler, rsmbouncemailprocessor)
+## Usage: install-v13
+exec /mnt/ddev_config/scripts/install-instance.sh 13

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<guides xmlns="https://www.phpdoc.org/guides" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://www.phpdoc.org/guides ../vendor/phpdocumentor/guides-cli/resources/schema/guides.xsd"
+        links-are-relative="true"
+        default-code-language="typoscript"
+>
+    <extension class="\T3Docs\Typo3DocsTheme\DependencyInjection\Typo3DocsThemeExtension"
+               project-home="https://extensions.typo3.org/extension/rsmbouncemailprocessor/"
+               project-contact="https://github.com/ressourcenmangel/rsmbouncemailprocessor/issues"
+               project-repository="https://github.com/ressourcenmangel/rsmbouncemailprocessor"
+               project-issues="https://github.com/ressourcenmangel/rsmbouncemailprocessor/issues"
+               edit-on-github-branch="main"
+               edit-on-github="ressourcenmangel/rsmbouncemailprocessor"
+               typo3-core-preferred="13.4"
+               interlink-shortcode="ressourcenmangel/rsmbouncemailprocessor"
+    />
+    <project title="RSM Bounce Mail Processor" release="main (development)" version="main (development)"
+             copyright="since 2022 by RYSM GmbH and Ralph Brugger"/>
+    <inventory id="t3cutemailing" url="https://docs.typo3.org/p/undkonsorten/typo3-cute-mailing/main/en-us/"/>
+</guides>

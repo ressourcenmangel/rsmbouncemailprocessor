@@ -52,7 +52,6 @@ class AnalyzeBounceMail extends AbstractTask
     public $conf;
     protected $arReasontext = [
         '550' => [
-            '5.7.1 unable to relay',
             '550 5.1.1 recipient',
         ],
         '551' => [
@@ -287,6 +286,9 @@ class AnalyzeBounceMail extends AbstractTask
 
         // TS Setup
         $this->conf = $this->getModuleTs('tx_rsmbouncemailprocessor');
+        if (!is_array($this->conf['settings.']['reasontext.'] ?? null)) {
+            throw $this->missingConfiguration('settings.reasontext');
+        }
 
         // set the reason texts from TS
         $this->arReasontext = [];
@@ -341,26 +343,7 @@ class AnalyzeBounceMail extends AbstractTask
             // get the messages from the server stream
             $this->messages = $this->mailServer->search('UNSEEN', $this->maxProcessed);
 
-            /** @var Message $message The message object */
-            foreach ($this->messages as $message) {
-
-                // process the mail
-                $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
-                if ($listunsubscribeHeader) {
-                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader);
-
-                } else {
-                    $result = $this->processBounceMail($message);
-
-                }
-
-                // delete the mail or set it to seen
-                if ($result || $this->getDeletealways()) {
-                    $message->delete();
-                } else {
-                    $message->setFlag('SEEN');
-                }
-            }
+            $this->processMessages($this->messages);
 
             // expunge to delete permanently
             $this->mailServer->expunge();
@@ -379,6 +362,54 @@ class AnalyzeBounceMail extends AbstractTask
 
         return $result;
 
+    }
+
+    /**
+     * Processes the fetched mails one by one, then deletes them or sets them to seen.
+     *
+     * @param Mailmessage[] $messages
+     */
+    private function processMessages(array $messages): void
+    {
+        foreach ($messages as $message) {
+            try {
+                // process the mail
+                $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
+                if ($listunsubscribeHeader) {
+                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader, $this->getSenderAddress($message));
+                    // rejected or failed unsubscribe requests are never deleted, not even with "delete always"
+                    $delete = $result;
+
+                } else {
+                    $result = $this->processBounceMail($message);
+                    $delete = $result || $this->getDeletealways();
+
+                }
+
+                // delete the mail or set it to seen
+                if ($delete) {
+                    $message->delete();
+                } else {
+                    $message->setFlag('SEEN');
+                }
+            } catch (\Throwable $exception) {
+                // one broken mail must not stop the run, it is never deleted (no addresses in the log)
+                try {
+                    $uid = $message->getUid();
+                } catch (\Throwable) {
+                    $uid = null;
+                }
+                $this->logger?->warning('Mail could not be processed, set to seen and skipped', [
+                    'uid' => $uid,
+                    'exception' => $exception::class,
+                    'code' => $exception->getCode(),
+                ]);
+                try {
+                    $message->setFlag('SEEN');
+                } catch (\Throwable) {
+                }
+            }
+        }
     }
 
     /**
@@ -693,6 +724,10 @@ class AnalyzeBounceMail extends AbstractTask
                         $row = $resultRows->fetchAssociative();
                         if ($row) {
                             $uidread = $row['uid'];
+                        }
+                        // A removed address that bounces again has subscribed anew: count from 0,
+                        // otherwise the old counters would remove it again with the first bounce.
+                        if ($row && (int)$row['removed'] === 0) {
                             $countunknownreason = $row['countunknownreason'];
                             $countnosenderfound = $row['countnosenderfound'];
                             $countuserunknown = $row['countuserunknown'];
@@ -834,22 +869,7 @@ class AnalyzeBounceMail extends AbstractTask
             $cp['content'] = trim($c);
             $parts = explode('>:', $c, 2);
             $cp['reason_text'] = trim($parts[1]);
-            // 550 Invalid recipient, User unknown
-            if (stristr($cp['reason_text'], '550')) {
-                $cp['reason'] = 550;
-                // No such user
-            } elseif (stristr($cp['reason_text'], '553')) {
-                // 553 mailbox name not allowed: the address is invalid, same as user unknown
-                $cp['reason'] = 550;
-                // Mailbox full
-            } elseif (stristr($cp['reason_text'], '551')) {
-                $cp['reason'] = 551;
-                // Mailbox full
-            } elseif (stristr($cp['reason_text'], 'recipient storage full')) {
-                $cp['reason'] = 551;
-            } else {
-                $cp['reason'] = -1;
-            }
+            $cp['reason'] = $this->detectPostfixReason($cp['reason_text']);
 //
         } elseif (strstr($c, 'Your message cannot be delivered to the following recipients:')) {
             // whoever this is...
@@ -880,7 +900,89 @@ class AnalyzeBounceMail extends AbstractTask
             $cp['reason'] = $this->extractReason($cp['reason_text']);
         }
 
+        // the delivery status (RFC 3464) is more reliable than any text pattern
+        $dsnReason = $this->detectDsnReason($c);
+        if ($dsnReason !== null) {
+            $cp['reason'] = $dsnReason;
+        }
+
         return $cp;
+    }
+
+    /**
+     * Reads the reason from the RFC 3464 delivery status fields "Status:" and "Diagnostic-Code: smtp;".
+     * Only the part before the attached original mail is read, a "Status:" header of the original
+     * mail or a "550" in its text must not decide.
+     *
+     * @return int|null the reason, null if there is no (conclusive) delivery status
+     */
+    private function detectDsnReason(string $content): ?int
+    {
+        $dsn = preg_split('/Content-Type:\s*(?:message\/rfc822|text\/rfc822-headers)|\s-{2,}\s*(?:Original message|Below this line)/i', $content, 2)[0];
+
+        $enhanced = null;
+        $code = null;
+        if (preg_match('/\bStatus:\s*(5\.\d+\.\d+)\b/i', $dsn, $m)) {
+            $enhanced = $m[1];
+        }
+        if (preg_match('/\bDiagnostic-Code:\s*smtp;\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $dsn, $m)) {
+            $code = (int)$m[1];
+            // a generic Status (5.x.0) is refined by a more specific code of the Diagnostic-Code
+            if ($enhanced === null || preg_match('/^5\.\d+\.0$/', $enhanced)) {
+                $enhanced = $m[2] ?? $enhanced;
+            }
+        }
+
+        return $this->mapSmtpReason($code, $enhanced);
+    }
+
+    /**
+     * Maps an SMTP code and an enhanced status code to a reason.
+     *
+     * If there is an enhanced status code, it decides: 5.1.1, 5.1.2 and 5.1.10 are "user unknown",
+     * 5.2.2 is "mailbox full", everything else (5.7.x policy/relay/spam, 5.1.8 sender rejected,
+     * 5.0.0, 5.4.x ...) is an unknown reason and never removes a recipient.
+     * Without an enhanced status, 553 and 551 are taken as they are (553 also comes with relay or
+     * sender rejections, it is not in ERR_REASON and counts as unknown reason). A bare 550 is
+     * inconclusive, the text patterns decide.
+     *
+     * @return int|null 550, 551, 553, -1 (unknown reason) or null if inconclusive
+     */
+    private function mapSmtpReason(?int $code, ?string $enhanced): ?int
+    {
+        if ($enhanced !== null) {
+            return match ($enhanced) {
+                '5.1.1', '5.1.2', '5.1.10' => 550,
+                '5.2.2' => 551,
+                default => -1,
+            };
+        }
+        return in_array($code, [551, 553], true) ? $code : null;
+    }
+
+    /**
+     * Reads the SMTP code of a Postfix bounce from the error line only, never from the attached
+     * original mail (a "550" in a Message-ID, date or newsletter text is no error code).
+     * The error line starts at the first ">:" and ends where the original mail begins
+     * ("said: 550 ..."), at most 300 characters. The delivery status fields are handled by
+     * detectDsnReason().
+     *
+     * @return int 550, 551, 553 or -1 (unknown reason)
+     */
+    private function detectPostfixReason(string $reasonText): int
+    {
+        $line = substr(preg_split('/\s-{2,}\s|Content-Description:|Reporting-MTA:/i', $reasonText, 2)[0], 0, 300);
+        $code = null;
+        $enhanced = null;
+        if (preg_match('/\bsaid:\s*(\d{3})\b(?:[ -]+(5\.\d+\.\d+)\b)?/i', $line, $m)) {
+            $code = (int)$m[1];
+            $enhanced = $m[2] ?? null;
+        } elseif (preg_match('/\b(55[0-4])\b/', $line, $m)) {
+            $code = (int)$m[1];
+        }
+
+        return $this->mapSmtpReason($code, $enhanced)
+            ?? (stripos($line, 'recipient storage full') !== false ? 551 : -1);
     }
 
     /**
@@ -1002,30 +1104,42 @@ class AnalyzeBounceMail extends AbstractTask
         $plainmsg = '';
 
         // BODY
-        $structure = imap_fetchstructure($this->mailServer->getImapStream(), $mid, FT_UID);
+        $structure = $this->imapFetchStructure($mid);
         if (!isset($structure->parts)) {
             // getpart($mbox,$mid,$s,0);  // pass 0 as part-number
-            $plainmsg .= $this->imapGetPart($mid, $structure, 0, $plainmsg);  // pass 0 as part-number
+            $plainmsg .= $this->imapGetPart($mid, $structure, 0);  // pass 0 as part-number
         } else {  // multipart: cycle through each part
             foreach ($structure->parts as $partno0 => $part) {
                 // getpart($mbox,$mid,$p,$partno0+1);
-                $plainmsg .= $this->imapGetPart($mid, $part, $partno0 + 1, $plainmsg);
+                $plainmsg .= $this->imapGetPart($mid, $part, $partno0 + 1);
             }
         }
 
         return $plainmsg;
     }
 
-    // https://www.php.net/manual/en/function.imap-fetchstructure.php
-    function imapGetPart($mid, $part, $partno, $plainmsg)
+    protected function imapFetchStructure(int $mid): object|false
     {
+        return imap_fetchstructure($this->mailServer->getImapStream(), $mid, FT_UID);
+    }
+
+    protected function imapFetchPart(int $mid, string|int $partno): string|false
+    {
+        $stream = $this->mailServer->getImapStream();
+        return $partno ? imap_fetchbody($stream, $mid, strval($partno), FT_UID | FT_PEEK) : imap_body($stream, $mid, FT_UID | FT_PEEK);
+    }
+
+    // https://www.php.net/manual/en/function.imap-fetchstructure.php
+    function imapGetPart($mid, $part, $partno)
+    {
+        // text of this part and of its subparts, every part exactly once
+        $plainmsg = '';
 
         // $partno = '1', '2', '2.1', '2.1.3', etc for multipart, 0 if simple
 
         // DECODE DATA
         // $mid is the IMAP uid, which differs from the message number as soon as mails were deleted
-        $data = ($partno) ? imap_fetchbody($this->mailServer->getImapStream(), $mid,
-            strval($partno), FT_UID | FT_PEEK) : imap_body($this->mailServer->getImapStream(), $mid, FT_UID | FT_PEEK);
+        $data = $this->imapFetchPart($mid, $partno);
 
         // Any part may be encoded, even plain text messages, so check everything.
         if ($part->encoding == 4) {
@@ -1068,7 +1182,7 @@ class AnalyzeBounceMail extends AbstractTask
         // SUBPART RECURSION
         if (isset($part->parts)) {
             foreach ($part->parts as $partno0 => $p2) {
-                $this->imapGetPart($mid, $p2, $partno . '.' . ($partno0 + 1), $plainmsg);  // 1.2, 1.2.1, etc.
+                $plainmsg .= $this->imapGetPart($mid, $p2, $partno . '.' . ($partno0 + 1));  // 1.2, 1.2.1, etc.
 
             }
         }
@@ -1139,11 +1253,30 @@ class AnalyzeBounceMail extends AbstractTask
     }
 
     /**
+     * get the normalized address (trimmed, lowercase, without display name) the mail was sent from
+     * @param Mailmessage $mailmessage the message object
+     * @return string empty if the mail has no usable From address
+     */
+    private function getSenderAddress(Mailmessage $mailmessage): string
+    {
+        $from = $mailmessage->getAddresses('from');
+        return is_array($from) ? $this->normalizeEmail((string)($from['address'] ?? '')) : '';
+    }
+
+    private function normalizeEmail(string $email): string
+    {
+        return strtolower(trim($email));
+    }
+
+    /**
      * process the ListunsubscribeHeader
+     * The recipient is only removed (fail closed) if the mail was sent from the address to unsubscribe
+     * and the recipient uid of the sendout's list belongs to exactly this address.
      * @param Array $listunsubscribeHeader
+     * @param string $senderAddress normalized From address of the unsubscribe mail
      * @return bool
      */
-    private function processlistunsubscribeHeader(array $listunsubscribeHeader): bool
+    private function processlistunsubscribeHeader(array $listunsubscribeHeader, string $senderAddress): bool
     {
         $success = false;
         $sendout = null;
@@ -1176,14 +1309,46 @@ class AnalyzeBounceMail extends AbstractTask
             // remove the recipient from the list
             if ($recipientList && $listunsubscribeHeader['rcptuid']) {
 
+                // verify the request, fail closed
+                $rejectReason = null;
+                $recipient = null;
+                $rcptemail = $this->normalizeEmail((string)$listunsubscribeHeader['rcptemail']);
+                if ($rcptemail === '' || $senderAddress !== $rcptemail) {
+                    $rejectReason = 'sender does not match the address to unsubscribe';
+                } else {
+                    try {
+                        $recipient = $recipientList->getRecipient((int)$listunsubscribeHeader['rcptuid']);
+                    } catch (\Throwable) {
+                        $rejectReason = 'recipient could not be looked up by uid';
+                    }
+                    if ($rejectReason === null && $recipient === null) {
+                        $rejectReason = 'recipient uid not found in the recipient list';
+                    } elseif ($rejectReason === null && $this->normalizeEmail($recipient->getEmail()) !== $rcptemail) {
+                        $rejectReason = 'recipient uid does not belong to the address to unsubscribe';
+                    }
+                }
+                if ($rejectReason !== null) {
+                    // no addresses in the log (GDPR)
+                    $this->logger?->warning('List-unsubscribe rejected: ' . $rejectReason, ['sendout' => $listunsubscribeHeader['sendout'], 'rcptuid' => $listunsubscribeHeader['rcptuid']]);
+                    return false;
+                }
+
                 // set the pid
                 $logpid = $recipientList->getRecipientListPage() ?? 0;
 
                 try {
-                    $recipientList->removeRecipientByEmail($listunsubscribeHeader['rcptemail']);
+                    $recipientList->removeRecipientByEmail($recipient->getEmail());
                     $success = true;
-                } catch (\Exception) {
+                } catch (\Exception $exception) {
                     $logpid = null;
+                    // no addresses in the log (GDPR)
+                    $this->logger?->warning('Recipient could not be removed from the recipient list on list-unsubscribe', [
+                        'sendout' => $listunsubscribeHeader['sendout'],
+                        'rcptuid' => $listunsubscribeHeader['rcptuid'],
+                        'type' => $recipientList::class,
+                        'exception' => $exception::class,
+                        'code' => $exception->getCode(),
+                    ]);
                 }
 
                 $this->persistenceManager()->persistAll();
@@ -1199,7 +1364,7 @@ class AnalyzeBounceMail extends AbstractTask
                                 ->insert('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog')
                                 ->values([
                                     'pid' => $this->conf['settings.']['deletelog.']['pid'],
-                                    'email' => $listunsubscribeHeader['rcptemail'],
+                                    'email' => $recipient->getEmail(),
                                     'origpid' => $logpid,
                                     'tstamp' => time(),
                                     'crdate' => time(),

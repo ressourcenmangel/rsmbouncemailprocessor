@@ -1,0 +1,4 @@
+#!/bin/bash
+## Description: TYPO3 14 neu installieren (cute_mailing, scheduler, rsmbouncemailprocessor)
+## Usage: install-v14
+exec /mnt/ddev_config/scripts/install-instance.sh 14
