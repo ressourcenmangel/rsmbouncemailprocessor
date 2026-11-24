@@ -84,7 +84,8 @@ trait LazyServicesTrait
     {
         return new \RuntimeException(
             'Configuration missing: module.tx_rsmbouncemailprocessor.' . $setting . ' was not found. '
-            . 'Include the TypoScript of the extension rsmbouncemailprocessor on the root page of the (first) site.',
+            . 'The extension registers its TypoScript globally, so it is probably overridden or removed by the TypoScript of the first root page '
+            . '(template or site set). The scheduler reads the first page with "Use as root page".',
             1763900002
         );
     }

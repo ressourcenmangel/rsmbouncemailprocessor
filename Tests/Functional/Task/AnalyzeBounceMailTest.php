@@ -636,7 +636,7 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
         GeneralUtility::setSingletonInstance(ConfigurationManager::class, $configurationManager);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('root page');
+        $this->expectExceptionMessage('first root page');
 
         $this->task->initClass();
     }

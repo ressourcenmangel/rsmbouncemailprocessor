@@ -421,7 +421,7 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         GeneralUtility::setSingletonInstance(ConfigurationManager::class, $configurationManager);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('root page');
+        $this->expectExceptionMessage('first root page');
 
         (new ProcessBounceMail())->execute();
     }
