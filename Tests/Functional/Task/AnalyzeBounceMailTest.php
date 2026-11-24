@@ -7,6 +7,7 @@ namespace RSM\Rsmbouncemailprocessor\Tests\Functional\Task;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LoggerInterface;
 use RSM\Rsmbouncemailprocessor\Task\AnalyzeBounceMail;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -15,6 +16,7 @@ use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 use Undkonsorten\CuteMailing\Domain\Model\RecipientList;
 use Undkonsorten\CuteMailing\Domain\Model\SendOut;
+use Undkonsorten\CuteMailing\Domain\Model\SimpleRecipient;
 use Undkonsorten\CuteMailing\Domain\Repository\SendOutRepository;
 
 #[CoversClass(AnalyzeBounceMail::class)]
@@ -201,13 +203,13 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     #[Test]
     public function listUnsubscribeRemovesRecipientAndReportsSuccess(): void
     {
-        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
         $recipientList->method('getRecipientListPage')->willReturn(95);
         $recipientList->expects(self::once())->method('removeRecipientByEmail')->with('a@example.test');
         $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
         $this->enableDeleteLog();
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test', 'sendout' => 7]);
+        $result = $this->unsubscribe('a@example.test');
 
         self::assertTrue($result, 'the mail has to be deleted after a successful unsubscribe');
         $logs = $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog');
@@ -217,15 +219,23 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     }
 
     #[Test]
+    public function listUnsubscribeComparesAddressesNormalized(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'A@Example.test');
+        $recipientList->expects(self::once())->method('removeRecipientByEmail')->with('A@Example.test');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertTrue($this->unsubscribe(' a@example.TEST ', 'a@example.test'));
+    }
+
+    #[Test]
     public function listUnsubscribeIsNotSuccessfulWhenRecipientCannotBeRemoved(): void
     {
-        $recipientList = $this->createStub(RecipientList::class);
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
         $recipientList->method('removeRecipientByEmail')->willThrowException(new \RuntimeException('Not implemented'));
         $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test', 'sendout' => 7]);
-
-        self::assertFalse($result);
+        self::assertFalse($this->unsubscribe('a@example.test'));
     }
 
     /**
@@ -236,9 +246,97 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     {
         $this->task = $this->taskWithSendout(null);
 
-        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test']);
+        $result = $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => 'a@example.test'], 'a@example.test');
 
         self::assertFalse($result);
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenSenderDiffers(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->enableDeleteLog();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::callback(static fn(string $message): bool => !str_contains($message, '@')),
+            self::callback(static fn(array $context): bool => !str_contains(json_encode($context), '@') && ($context['rcptuid'] ?? null) === 5 && ($context['sendout'] ?? null) === 7)
+        );
+        $this->task->setLogger($logger);
+
+        self::assertFalse($this->unsubscribe('a@example.test', 'someone-else@example.test'));
+        self::assertSame([], $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenSenderIsMissing(): void
+    {
+        $recipientList = $this->recipientListWith(5, 'a@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test', ''));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenUidBelongsToAnotherAddress(): void
+    {
+        // uid 5 is b@example.test, the mail claims it is a@example.test (and is sent from there)
+        $recipientList = $this->recipientListWith(5, 'b@example.test');
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+        $this->enableDeleteLog();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::callback(static fn(string $message): bool => !str_contains($message, '@')),
+            self::callback(static fn(array $context): bool => !str_contains(json_encode($context), '@'))
+        );
+        $this->task->setLogger($logger);
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+        self::assertSame([], $this->rows('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenUidIsUnknown(): void
+    {
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willReturn(null);
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    #[Test]
+    public function listUnsubscribeIsRejectedWhenTheUidLookupFails(): void
+    {
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willThrowException(new \RuntimeException('not supported'));
+        $recipientList->expects(self::never())->method('removeRecipientByEmail');
+        $this->task = $this->taskWithSendout($this->sendoutWithRecipientList($recipientList));
+
+        self::assertFalse($this->unsubscribe('a@example.test'));
+    }
+
+    public static function senderAddressDataProvider(): array
+    {
+        return [
+            'plain' => [['address' => 'a@example.test', 'name' => 'A'], 'a@example.test'],
+            'normalized' => [['address' => ' A@Example.TEST '], 'a@example.test'],
+            'no from header' => [false, ''],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('senderAddressDataProvider')]
+    public function senderAddressIsReadNormalized(array|false $from, string $expected): void
+    {
+        $message = $this->createStub(\RSM\Rsmbouncemailprocessor\Utility\Mailmessage::class);
+        $message->method('getAddresses')->willReturn($from);
+
+        self::assertSame($expected, $this->call('getSenderAddress', $message));
     }
 
     // ------------------------------------------------------------------ reports
@@ -419,6 +517,23 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     private function enableDeleteLog(): void
     {
         $this->setProperty('conf', ['settings.' => ['deletelog.' => ['enabled' => '1', 'pid' => '94']]]);
+    }
+
+    /**
+     * Executes a list-unsubscribe request for sendout 7, recipient uid 5 and the given address.
+     */
+    private function unsubscribe(string $rcptemail, ?string $sender = null): bool
+    {
+        return $this->call('processlistunsubscribeHeader', ['action' => 'listunsubscribe', 'rcptuid' => 5, 'rcptemail' => $rcptemail, 'sendout' => 7], $sender ?? $rcptemail);
+    }
+
+    private function recipientListWith(int $uid, string $email): RecipientList&\PHPUnit\Framework\MockObject\MockObject
+    {
+        $recipient = new SimpleRecipient();
+        $recipient->setUid($uid)->setEmail($email);
+        $recipientList = $this->createMock(RecipientList::class);
+        $recipientList->method('getRecipient')->willReturnCallback(static fn(int $requested): ?SimpleRecipient => $requested === $uid ? $recipient : null);
+        return $recipientList;
     }
 
     private function sendoutWithRecipientList(RecipientList $recipientList): SendOut

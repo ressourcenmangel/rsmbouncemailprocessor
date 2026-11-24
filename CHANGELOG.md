@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Postfix bounces: the reason is read from the delivery status (Status, Diagnostic-Code, error line) and no longer from the attached original mail, where a "550" in a Message-ID or text caused a wrong "user unknown"; enhanced status 5.7.x is never "user unknown"
 - Generic failure texts ("could not be delivered to one or more recipients" and similar) no longer count as user unknown, the delivery status (Status, Diagnostic-Code) of every bounce is evaluated first
 
+### Security
+
+- Unsubscribes via List-Unsubscribe are only executed if the sender of the mail and the recipient uid match the address to unsubscribe, otherwise nothing is removed and a warning without addresses is logged
+
 ### Removed
 
 - IDE settings and README.pdf from the repository

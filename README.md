@@ -223,7 +223,7 @@ ddev exec "cd /var/www/html/v13 && vendor/bin/typo3 scheduler:run --task=1 -f"  
 ddev exec "cd /var/www/html/v13 && vendor/bin/typo3 scheduler:run --task=2 -f"   # Limits pruefen, Empfaenger entfernen
 ```
 
-`ddev bounces` liefert per IMAP APPEND ein und ersetzt die Platzhalter der Fixtures (`--email`, `--sendout`, Standard 1, `--rcptuid`).
+`ddev bounces` liefert per IMAP APPEND ein und ersetzt die Platzhalter der Fixtures (`--email`, `--sendout`, Standard 1, `--rcptuid`). Mit `--from=` kann der Absender abweichen (Standard: `--email`), z.B. um eine gefaelschte Abmelde-Mail `list-unsubscribe.eml` zu testen.
 Nach 2x "550 user unknown" fuer `recipient1@example.test` entfernt Task 2 die Adresse aus der tt_address-Liste
 und markiert den Recipient-Report als `removed`. Fuer v14 `v13` durch `v14` ersetzen. Beide Instanzen lesen
 dasselbe Postfach, die Mails werden beim Auswerten verbraucht, daher vor dem Test in der zweiten Instanz neu einliefern.

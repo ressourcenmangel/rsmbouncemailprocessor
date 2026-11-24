@@ -346,7 +346,7 @@ class AnalyzeBounceMail extends AbstractTask
                 // process the mail
                 $listunsubscribeHeader = $this->getListunsubscribeHeader($message);
                 if ($listunsubscribeHeader) {
-                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader);
+                    $result = $this->processlistunsubscribeHeader($listunsubscribeHeader, $this->getSenderAddress($message));
 
                 } else {
                     $result = $this->processBounceMail($message);
@@ -1206,11 +1206,30 @@ class AnalyzeBounceMail extends AbstractTask
     }
 
     /**
+     * get the normalized address (trimmed, lowercase, without display name) the mail was sent from
+     * @param Mailmessage $mailmessage the message object
+     * @return string empty if the mail has no usable From address
+     */
+    private function getSenderAddress(Mailmessage $mailmessage): string
+    {
+        $from = $mailmessage->getAddresses('from');
+        return is_array($from) ? $this->normalizeEmail((string)($from['address'] ?? '')) : '';
+    }
+
+    private function normalizeEmail(string $email): string
+    {
+        return strtolower(trim($email));
+    }
+
+    /**
      * process the ListunsubscribeHeader
+     * The recipient is only removed (fail closed) if the mail was sent from the address to unsubscribe
+     * and the recipient uid of the sendout's list belongs to exactly this address.
      * @param Array $listunsubscribeHeader
+     * @param string $senderAddress normalized From address of the unsubscribe mail
      * @return bool
      */
-    private function processlistunsubscribeHeader(array $listunsubscribeHeader): bool
+    private function processlistunsubscribeHeader(array $listunsubscribeHeader, string $senderAddress): bool
     {
         $success = false;
         $sendout = null;
@@ -1243,11 +1262,35 @@ class AnalyzeBounceMail extends AbstractTask
             // remove the recipient from the list
             if ($recipientList && $listunsubscribeHeader['rcptuid']) {
 
+                // verify the request, fail closed
+                $rejectReason = null;
+                $recipient = null;
+                $rcptemail = $this->normalizeEmail((string)$listunsubscribeHeader['rcptemail']);
+                if ($rcptemail === '' || $senderAddress !== $rcptemail) {
+                    $rejectReason = 'sender does not match the address to unsubscribe';
+                } else {
+                    try {
+                        $recipient = $recipientList->getRecipient((int)$listunsubscribeHeader['rcptuid']);
+                    } catch (\Throwable) {
+                        $rejectReason = 'recipient could not be looked up by uid';
+                    }
+                    if ($rejectReason === null && $recipient === null) {
+                        $rejectReason = 'recipient uid not found in the recipient list';
+                    } elseif ($rejectReason === null && $this->normalizeEmail($recipient->getEmail()) !== $rcptemail) {
+                        $rejectReason = 'recipient uid does not belong to the address to unsubscribe';
+                    }
+                }
+                if ($rejectReason !== null) {
+                    // no addresses in the log (GDPR)
+                    $this->logger?->warning('List-unsubscribe rejected: ' . $rejectReason, ['sendout' => $listunsubscribeHeader['sendout'], 'rcptuid' => $listunsubscribeHeader['rcptuid']]);
+                    return false;
+                }
+
                 // set the pid
                 $logpid = $recipientList->getRecipientListPage() ?? 0;
 
                 try {
-                    $recipientList->removeRecipientByEmail($listunsubscribeHeader['rcptemail']);
+                    $recipientList->removeRecipientByEmail($recipient->getEmail());
                     $success = true;
                 } catch (\Exception) {
                     $logpid = null;
@@ -1266,7 +1309,7 @@ class AnalyzeBounceMail extends AbstractTask
                                 ->insert('tx_rsmbouncemailprocessor_domain_model_listunsubscribeheaderlog')
                                 ->values([
                                     'pid' => $this->conf['settings.']['deletelog.']['pid'],
-                                    'email' => $listunsubscribeHeader['rcptemail'],
+                                    'email' => $recipient->getEmail(),
                                     'origpid' => $logpid,
                                     'tstamp' => time(),
                                     'crdate' => time(),

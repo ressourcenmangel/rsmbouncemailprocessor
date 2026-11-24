@@ -1,7 +1,7 @@
 <?php
 // Liefert Bounce-Fixtures (Tests/Fixtures/Bounces/*.eml) per IMAP APPEND ins Dovecot-Postfach.
-// Aufruf: php deliver-bounces.php [--purge] [--email=a@b.c] [--sendout=N] [--rcptuid=N] [--times=N] [datei.eml ...]
-// Platzhalter in den Fixtures: {{EMAIL}} {{MSGID}} {{RCPT_B64}} {{SENDOUT_UID}} {{RCPT_UID}}
+// Aufruf: php deliver-bounces.php [--purge] [--email=a@b.c] [--from=a@b.c] [--sendout=N] [--rcptuid=N] [--times=N] [datei.eml ...]
+// Platzhalter in den Fixtures: {{EMAIL}} {{FROM}} {{MSGID}} {{RCPT_B64}} {{SENDOUT_UID}} {{RCPT_UID}}
 
 $opts = ['email' => getenv('BOUNCE_RECIPIENT') ?: 'recipient1@example.test', 'sendout' => getenv('BOUNCE_SENDOUT_UID') ?: '1', 'rcptuid' => '1', 'times' => '1'];
 $files = [];
@@ -9,7 +9,7 @@ $purge = false;
 foreach (array_slice($argv, 1) as $arg) {
     if ($arg === '--purge') {
         $purge = true;
-    } elseif (preg_match('/^--(email|sendout|rcptuid|times)=(.+)$/', $arg, $m)) {
+    } elseif (preg_match('/^--(email|from|sendout|rcptuid|times)=(.+)$/', $arg, $m)) {
         $opts[$m[1]] = $m[2];
     } else {
         $files[] = $arg;
@@ -67,6 +67,8 @@ foreach ($paths as $path) {
     for ($i = 0; $i < (int)$opts['times']; $i++) {
         $mail = strtr((string)file_get_contents($path), [
             '{{EMAIL}}' => $opts['email'],
+            // Absender der Mail, Standard: die Empfaengeradresse (--from fuer gefaelschte Absender)
+            '{{FROM}}' => $opts['from'] ?? $opts['email'],
             '{{MSGID}}' => bin2hex(random_bytes(8)),
             '{{RCPT_B64}}' => base64_encode($opts['email']),
             '{{SENDOUT_UID}}' => $opts['sendout'],
