@@ -13,14 +13,14 @@ declare(strict_types=1);
  ***************************************************************/
 $EM_CONF['rsmbouncemailprocessor'] = [
     'title' => 'RSM Bounce Mail Processor',
-    'description' => 'A RSM TYPO3 extension for bounce mail procsessing',
+    'description' => 'A RSM TYPO3 extension for bounce mail processing',
     'category' => 'plugin',
     'version' => '4.0.0',
     'state' => 'stable',
     'clearcacheonload' => false,
-    'author' => 'ressourcenmangel',
-    'author_email' => 'ralph.brugger@ressourcenmangel.de',
-    'author_company' => null,
+    'author' => 'Ralph Brugger, RYSM GmbH',
+    'author_email' => '',
+    'author_company' => 'RYSM GmbH',
     'constraints' =>
         [
             'depends' =>

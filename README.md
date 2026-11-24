@@ -239,6 +239,7 @@ Benutzer `bounce`, Passwort `bounce`, Service `imap`.
 
 ## Credits
 
-This extension was created by Ralph Brugger for [ressourcenmangel](https://www.ressourcenmangel.de/).
+This extension was created by Ralph Brugger ([LinkPool2](https://github.com/LinkPool2)) for [RYSM GmbH](https://integral.rysm.com/) (formerly ressourcenmangel).
+It is maintained by RYSM GmbH together with Ralph Brugger.
 Many thanks to Eike Starkmann from [undkonsorten](https://www.undkonsorten.com/) for developing and extending cute_mailing!
 

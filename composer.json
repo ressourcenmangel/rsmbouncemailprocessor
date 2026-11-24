@@ -2,17 +2,21 @@
 	"name": "ressourcenmangel/rsmbouncemailprocessor",
 	"type": "typo3-cms-extension",
 	"description": "A TYPO3 extension that handles bounce mails in combination with cute_mailing.",
-	"homepage": "https://www.ressourcenmangel.de/",
+	"homepage": "https://integral.rysm.com/",
 	"authors": [
 		{
 			"name": "Ralph Brugger",
-			"email": "ralph.brugger@ressourcenmangel.de",
-			"homepage": "https://www.ressourcenmangel.de/",
+			"homepage": "https://github.com/LinkPool2",
 			"role": "Developer"
+		},
+		{
+			"name": "RYSM GmbH",
+			"homepage": "https://integral.rysm.com/",
+			"role": "Maintainer"
 		}
 	],
 	"license": [
-		"GPL-2.0+"
+		"GPL-2.0-or-later"
 	],
 	"keywords": [
 		"email",
@@ -21,7 +25,7 @@
 		"TYPO3"
 	],
 	"support": {
-		"issues": "https://github.com/undkonsorten/rsmbouncemailprocessor/issues"
+		"issues": "https://github.com/ressourcenmangel/rsmbouncemailprocessor/issues"
 	},
 	"require": {
 		"ext-json": "*",

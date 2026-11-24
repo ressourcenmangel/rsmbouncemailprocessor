@@ -5,7 +5,6 @@
 			<description>Labels for the main rsmbouncemailprocessor module</description>
 			<type>module</type>
 			<authorName>Ralph Brugger</authorName>
-			<authorEmail>ralph.brugger@ressourcenmangel.de</authorEmail>
 		</header>
 		<body>
 			<trans-unit id="scheduler.rsmbouncemail.server" resname="scheduler.rsmbouncemail.server">
