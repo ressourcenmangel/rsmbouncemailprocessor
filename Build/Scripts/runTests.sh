@@ -561,7 +561,7 @@ mkdir -p .Build/public/typo3temp/var/tests
 IMAGE_PHP="ghcr.io/typo3/core-testing-$(echo "php${PHP_VERSION}" | sed -e 's/\.//'):latest"
 IMAGE_NODEJS="ghcr.io/typo3/core-testing-nodejs24:1.1"
 IMAGE_SHELLCHECK="docker.io/koalaman/shellcheck:v0.11.0"
-IMAGE_RSTRENDERING="ghcr.io/typo3-documentation/render-guides:0.39.0"
+IMAGE_RSTRENDERING="ghcr.io/typo3-documentation/render-guides:0.47.3"
 IMAGE_MARIADB="docker.io/mariadb:${DBMS_VERSION}"
 IMAGE_MYSQL="docker.io/mysql:${DBMS_VERSION}"
 IMAGE_POSTGRES="docker.io/postgres:${DBMS_VERSION}-alpine"
@@ -654,7 +654,7 @@ case ${TEST_SUITE} in
     executeRstRendering)
         mkdir -p Documentation-GENERATED-temp
         chown -R ${HOST_UID}:${HOST_PID} Documentation-GENERATED-temp
-        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name execute-rst-rendering -v "${ROOT_DIR}":/project ${IMAGE_RSTRENDERING} --config=Documentation
+        ${CONTAINER_BIN} run ${CONTAINER_COMMON_PARAMS} --name execute-rst-rendering -v "${ROOT_DIR}":/project ${IMAGE_RSTRENDERING} --config=Documentation --fail-on-log
         SUITE_EXIT_CODE=$?
         ;;
     fix)

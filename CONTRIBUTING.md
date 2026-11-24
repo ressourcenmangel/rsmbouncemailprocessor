@@ -16,6 +16,7 @@ For bounce detection problems, an anonymised copy of the bounce mail helps a lot
 - Add or adapt tests. Run them with `Build/Scripts/runTests.sh -s unit` and
   `Build/Scripts/runTests.sh -s functional` (see `-h` for TYPO3 and PHP versions).
 - Add a short entry to `CHANGELOG.md` for changes that matter to users.
+- Render the documentation with `Build/Scripts/runTests.sh -b docker -s executeRstRendering`; it must finish without warnings (output in `Documentation-GENERATED-temp/`, ignored by git).
 - A local DDEV setup with TYPO3 13 and 14 and an IMAP test mailbox is described in the README.
 
 ## AI assistance
