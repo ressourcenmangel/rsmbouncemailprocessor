@@ -81,6 +81,55 @@ final class AnalyzeBounceMailAdditionalFieldsTest extends FunctionalTestCase
         self::assertStringContainsString('checked="checked"', $fields['deletealways']['code']);
     }
 
+    /**
+     * Values end up in value="..." attributes of the scheduler form, a quote or a tag in the server
+     * name must not break out of it (XSS for backend users who edit the task).
+     */
+    #[Test]
+    public function taskValuesAreEscapedInTheForm(): void
+    {
+        $task = $this->get(AnalyzeBounceMail::class);
+        $task->setServer('"><script>alert(1)</script>');
+        $task->setUser('a"b\'c');
+
+        $taskInfo = [];
+        $fields = (new AnalyzeBounceMailAdditionalFields())->getAdditionalFields($taskInfo, $task, $this->schedulerModule());
+
+        self::assertStringNotContainsString('<script>', $fields['server']['code']);
+        self::assertStringContainsString('value="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"', $fields['server']['code']);
+        self::assertStringNotContainsString('a"b', $fields['user']['code']);
+    }
+
+    /**
+     * The password is never sent back to the browser.
+     */
+    #[Test]
+    public function passwordIsNeverPrefilledInTheForm(): void
+    {
+        $task = $this->get(AnalyzeBounceMail::class);
+        $task->setPassword('s3cr3t"pw');
+
+        $taskInfo = [];
+        $fields = (new AnalyzeBounceMailAdditionalFields())->getAdditionalFields($taskInfo, $task, $this->schedulerModule());
+
+        self::assertStringNotContainsString('s3cr3t', $fields['password']['code']);
+        self::assertStringContainsString('value=""', $fields['password']['code']);
+    }
+
+    #[Test]
+    public function emptyPasswordInputKeepsTheStoredPassword(): void
+    {
+        $task = $this->get(AnalyzeBounceMail::class);
+        $task->setPassword('stored');
+        $data = ['bounceServer' => 'imap', 'bouncePort' => '143', 'bounceUser' => 'bounce', 'bounceService' => 'imap', 'bounceProcessed' => '50'];
+
+        (new AnalyzeBounceMailAdditionalFields())->saveAdditionalFields($data + ['bouncePassword' => ''], $task);
+        self::assertSame('stored', $task->getPassword());
+
+        (new AnalyzeBounceMailAdditionalFields())->saveAdditionalFields($data + ['bouncePassword' => 'new'], $task);
+        self::assertSame('new', $task->getPassword());
+    }
+
     #[Test]
     public function submittedDataIsSavedInTask(): void
     {

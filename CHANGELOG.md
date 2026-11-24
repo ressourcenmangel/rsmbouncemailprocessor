@@ -32,6 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - Unsubscribes via List-Unsubscribe are only executed if the sender of the mail and the recipient uid match the address to unsubscribe, otherwise nothing is removed and a warning without addresses is logged
+- Scheduler form of the analyze task: values are HTML escaped, the stored mailbox password is no longer sent to the browser (empty input keeps the stored password)
 
 ### Removed
 
