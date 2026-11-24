@@ -36,6 +36,7 @@ Build/Screenshots/screenshots.sh
 ```
 
 Optional environment variables: `BASE_URL`, `BE_USER`, `BE_PASSWORD`, `NEWSLETTER_PAGE`
-(page of the newsletters, default 2). Only `example.test` addresses appear in the images.
+(page of the newsletters, default 2), `DELETELOG_PAGE` (page of the delete log, default 4, needs
+`settings.deletelog` enabled for that page and at least one removal by task 2). Only `example.test` addresses appear in the images.
 The password field of the scheduler form must stay empty in the image (it is, because the
 stored password is never sent to the browser).

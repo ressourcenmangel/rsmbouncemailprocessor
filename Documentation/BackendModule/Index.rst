@@ -57,6 +57,12 @@ Delete log
 
 With :ref:`settings.deletelog <configuration-deletelog>` enabled, every removal
 is logged on the configured page. The entries are shown in the
-:guilabel:`List` module: one table for removals by bounce handling (with
+:guilabel:`List` module (TYPO3 14: :guilabel:`Content > Records`): one table for removals by bounce handling (with
 the reason and its counter value) and one for removals by `List-Unsubscribe`.
 The retention is controlled by :ref:`deletetables <configuration>`.
+
+..  figure:: /Images/delete-log.png
+    :alt: The delete log in the Records module (TYPO3 14)
+    :class: with-shadow
+
+    The delete log on its page in the Records module (TYPO3 14)

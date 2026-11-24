@@ -7,6 +7,7 @@ const USER = process.env.BE_USER ?? 'admin';
 const PASSWORD = process.env.BE_PASSWORD ?? 'Password:joh316';
 const OUT = process.env.OUT_DIR ?? '/out';
 const NEWSLETTER_PAGE = process.env.NEWSLETTER_PAGE ?? '2';
+const DELETELOG_PAGE = process.env.DELETELOG_PAGE ?? '4';
 
 const browser = await chromium.launch();
 const context = await browser.newContext({
@@ -38,6 +39,10 @@ await shot('bounce-reports');
 const frame = page.frameLocator('iframe').first();
 await frame.getByRole('link', { name: 'Recipient Report' }).first().click();
 await shot('recipient-reports');
+
+// delete log: list of the delete log page (needs settings.deletelog enabled, pid 4, and a removal)
+await page.goto(`${BASE}/typo3/module/content/records?id=${DELETELOG_PAGE}`);
+await shot('delete-log');
 
 // scheduler: edit form of the analyze task (the password field is empty)
 await page.goto(`${BASE}/typo3/module/scheduler`);
