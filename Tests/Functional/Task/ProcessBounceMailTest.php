@@ -15,6 +15,7 @@ use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use Undkonsorten\CuteMailing\Domain\Model\LineSeparatedRecipientList;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
@@ -405,6 +406,23 @@ final class ProcessBounceMailTest extends FunctionalTestCase
         $this->process(true, null, null, $maxRemovalsPer24h);
 
         self::assertSame([], $this->recipientList->getEmails());
+    }
+
+    /**
+     * Without the TypoScript of the extension nothing would be removed, silently. The task fails
+     * with a message that tells what to do.
+     */
+    #[Test]
+    public function taskFailsWithAClearMessageWithoutConfiguration(): void
+    {
+        $configurationManager = $this->createStub(ConfigurationManager::class);
+        $configurationManager->method('getConfiguration')->willReturn([]);
+        GeneralUtility::setSingletonInstance(ConfigurationManager::class, $configurationManager);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('root page');
+
+        (new ProcessBounceMail())->execute();
     }
 
     // ------------------------------------------------------------------ helpers

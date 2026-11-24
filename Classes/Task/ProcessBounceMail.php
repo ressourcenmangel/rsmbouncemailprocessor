@@ -65,6 +65,9 @@ class ProcessBounceMail extends AbstractTask
 
         // TS Setup
         $this->conf = $this->getModuleTs('tx_rsmbouncemailprocessor');
+        if (!is_array($this->conf['settings.']['deletelimits.'] ?? null)) {
+            throw $this->missingConfiguration('settings.deletelimits');
+        }
 
         /** @var NewsletterRepository $newsletterRepository */
         $this->newsletterRepository = GeneralUtility::makeInstance(NewsletterRepository::class);

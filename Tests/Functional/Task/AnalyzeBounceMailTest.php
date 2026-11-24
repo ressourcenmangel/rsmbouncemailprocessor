@@ -13,6 +13,8 @@ use RSM\Rsmbouncemailprocessor\Utility\Mailmessage;
 use TYPO3\CMS\Core\Core\SystemEnvironmentBuilder;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ServerRequest;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\TestingFramework\Core\Functional\FunctionalTestCase;
 use Undkonsorten\CuteMailing\Domain\Model\Newsletter;
 use Undkonsorten\CuteMailing\Domain\Model\RecipientList;
@@ -621,6 +623,23 @@ final class AnalyzeBounceMailTest extends FunctionalTestCase
     }
 
     // ------------------------------------------------------------------ execute
+
+    /**
+     * Without the TypoScript of the extension no bounce reason could be detected. The task fails
+     * with a message that tells what to do.
+     */
+    #[Test]
+    public function taskFailsWithAClearMessageWithoutConfiguration(): void
+    {
+        $configurationManager = $this->createStub(ConfigurationManager::class);
+        $configurationManager->method('getConfiguration')->willReturn([]);
+        GeneralUtility::setSingletonInstance(ConfigurationManager::class, $configurationManager);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('root page');
+
+        $this->task->initClass();
+    }
 
     #[Test]
     public function executeFailsWithoutExceptionWhenMailboxIsNotReachable(): void

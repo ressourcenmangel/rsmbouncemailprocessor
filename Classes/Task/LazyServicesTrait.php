@@ -31,7 +31,11 @@ trait LazyServicesTrait
 
     /**
      * Scheduler runs from the CLI have no request, but the ConfigurationManager needs one to build
-     * the (global) TypoScript. Without a page id this is the TypoScript of the installed extensions.
+     * the (global) TypoScript. Without a page id, Extbase guesses the page: the first page with
+     * "is_siteroot", else the page of the first root sys_template, else 0. The TypoScript of that
+     * page is used (rootline templates, site sets), plus the TypoScript every extension registers
+     * globally with addTypoScript() (that is how this extension is configured). With several
+     * sites only the first site is read.
      */
     private function configurationManager(): ConfigurationManager
     {
@@ -44,5 +48,17 @@ trait LazyServicesTrait
             );
         }
         return $configurationManager;
+    }
+
+    /**
+     * Tasks need the TypoScript of the extension, without it they would silently do nothing.
+     */
+    private function missingConfiguration(string $setting): \RuntimeException
+    {
+        return new \RuntimeException(
+            'Configuration missing: module.tx_rsmbouncemailprocessor.' . $setting . ' was not found. '
+            . 'Include the TypoScript of the extension rsmbouncemailprocessor on the root page of the (first) site.',
+            1763900002
+        );
     }
 }

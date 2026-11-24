@@ -286,6 +286,9 @@ class AnalyzeBounceMail extends AbstractTask
 
         // TS Setup
         $this->conf = $this->getModuleTs('tx_rsmbouncemailprocessor');
+        if (!is_array($this->conf['settings.']['reasontext.'] ?? null)) {
+            throw $this->missingConfiguration('settings.reasontext');
+        }
 
         // set the reason texts from TS
         $this->arReasontext = [];
